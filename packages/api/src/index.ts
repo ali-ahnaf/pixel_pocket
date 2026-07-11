@@ -12,6 +12,7 @@ import transactionsRouter from './routes/transactions.routes';
 import analyticsRouter from './routes/analytics.routes';
 import vaultsRouter from './routes/vaults.routes';
 import tagsRouter from './routes/tags.routes';
+import adventureRouter from './routes/adventure.route'
 import recurringRouter from './routes/recurring.routes';
 import debtsRouter from './routes/debts.routes';
 import preferencesRouter from './routes/preferences.routes';
@@ -28,6 +29,7 @@ import { restoreAllRecurringJobs } from './scheduler/recurring-scheduler';
 import { startBackupScheduler } from './scheduler/backup-scheduler';
 import { startGmailWatchScheduler, renewExpiringGmailWatches } from './scheduler/gmail-watch-scheduler';
 import { logger } from './services/logger.service';
+import adventureItemsRoute from './routes/adventureItems.route';
 const app = express();
 const PORT = process.env.PORT || 4000;
 const isDev = process.env.NODE_ENV !== 'production';
@@ -62,9 +64,12 @@ app.use('/api/users/:userId/vault-watchers', requireAuth, vaultWatchersRouter);
 app.use('/api/users/:userId/push-subscriptions', requireAuth, pushSubscriptionsRouter);
 app.use('/api/users/:userId/ai-credentials', requireAuth, aiCredentialsRouter);
 app.use('/api/users/:userId/pending-expenses', requireAuth, pendingExpensesRouter);
+app.use('/api/users/:userId/adventures' ,requireAuth,adventureRouter)
+app.use('/api/users/:userId/adventures/:adventureId/items', requireAuth, adventureItemsRoute);
 
 // Public Google OAuth callback — no requireAuth; the user id rides in a signed state.
 app.use('/api/oauth', oauthRouter);
+
 
 // Serve static files from the Next.js build
 const uiDir = path.join(__dirname, '../../ui/out');

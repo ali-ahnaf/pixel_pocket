@@ -17,12 +17,15 @@
     "migration:run": "npm run migration:run --workspace=packages/api",
     "migration:run-prod": "npm run migration:run-prod --workspace=packages/api",
     "migration:revert": "npm run migration:revert --workspace=packages/api",
-    
     "test:unit": "npm run build:shared && npm run test:api && npm run test:ui:unit",
     "test:api": "npm run test --workspace=packages/api",
     "test:ui:unit": "npm run test:unit --workspace=packages/ui",
     "test:ui:e2e": "npm run test:e2e --workspace=packages/ui",
     "test:ui:e2e-ui": "npm run test:e2e:ui --workspace=packages/ui",
     "test:ui:e2e-report": "npm run test:e2e:report --workspace=packages/ui"
+  },
+  "dependencies": {
+    "@expense-tracker/shared": "^1.0.0",
+    "typescript": "^7.0.2"
   }
 }

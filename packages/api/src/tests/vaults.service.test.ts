@@ -12,7 +12,7 @@ jest.mock('../services', () => ({
 type UsersRepositoryMock = jest.Mocked<Pick<UsersRepository, 'findById'>>;
 type VaultsRepositoryMock = jest.Mocked<Pick<VaultsRepository, 'findManyForUser' | 'findOneForUser' | 'createEntity' | 'save' | 'remove' | 'setDefault'>>;
 
-const buildUser = (overrides: Partial<User> = {}): User => ({
+const buildUser = (overrides: Partial<User> = {}): User => <User>({
   id: 'user-1',
   name: 'Ada Lovelace',
   email: 'ada@example.com',
