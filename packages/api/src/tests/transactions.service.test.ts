@@ -209,5 +209,4 @@ describe('TransactionsService', () => {
       expect(transactions.softDelete).not.toHaveBeenCalled();
     });
   });
-
 });
