@@ -14,7 +14,6 @@ const createTransactionSchema = Joi.object<CreateTransactionInput>({
   date: Joi.string()
     .pattern(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
-  isCommitted: Joi.boolean().optional(),
 });
 
 router.post(
