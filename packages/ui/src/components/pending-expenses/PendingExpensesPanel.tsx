@@ -14,9 +14,10 @@ interface PendingExpensesPanelProps {
 
 /**
  * Gmail bank-alert review queue: fetched once the user is authenticated,
- * showing only the vault + guidance hint per pointer (no email content — that
- * is re-fetched live on click). Clicking an item opens the parse/dismiss
- * flow. See documentation/openrouter-ai-migration.md (T12).
+ * showing the stored email subject with the vault name as a chip plus the
+ * guidance hint per pointer (no email body — that is re-fetched live on
+ * click). Clicking an item opens the parse/dismiss flow. See
+ * documentation/openrouter-ai-migration.md (T12).
  */
 export function PendingExpensesPanel({ userId }: PendingExpensesPanelProps): JSX.Element | null {
   const [items, setItems] = useState<PendingGmailExpenseDto[]>([]);
@@ -70,8 +71,11 @@ export function PendingExpensesPanel({ userId }: PendingExpensesPanelProps): JSX
                 onClick={() => setSelected(item)}
                 className="flex items-center justify-between gap-2 bg-surface p-3 border-4 border-dashed border-secondary hover:bg-secondary-container/20 active:translate-y-0.5 transition-colors text-left"
               >
-                <div className="min-w-0">
-                  <p className="font-body-sm font-bold text-on-surface truncate">{item.vaultName}</p>
+                <div className="min-w-0 flex flex-col gap-1">
+                  <p className="font-body-sm font-bold text-on-surface truncate">{item.subject ?? 'No subject'}</p>
+                  <Badge variant="secondary" className="text-[10px] self-start max-w-full truncate">
+                    {item.vaultName}
+                  </Badge>
                   {item.guidanceHint && <p className="text-[11px] text-on-surface-variant truncate">{item.guidanceHint}</p>}
                 </div>
                 <ChevronRight className="w-4 h-4 shrink-0 text-outline" />

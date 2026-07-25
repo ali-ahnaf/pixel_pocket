@@ -34,6 +34,14 @@ describe('Sidebar', () => {
     expect(settingsLink).toHaveTextContent('Settings');
   });
 
+  it('renders the OpenRouter AI and Google OAuth nav links', async () => {
+    render(<Sidebar isOpen={true} onClose={onClose} onLogout={onLogout} />);
+    await screen.findByText('Menu');
+
+    expect(document.querySelector('a[href="/settings/ai"]')).toHaveTextContent('OpenRouter AI');
+    expect(document.querySelector('a[href="/settings/google-oauth"]')).toHaveTextContent('Gmail Integration');
+  });
+
   it('calls onClose when the close (X) button is clicked', async () => {
     render(<Sidebar isOpen={true} onClose={onClose} onLogout={onLogout} />);
     await screen.findByText('Menu');
@@ -43,9 +51,7 @@ describe('Sidebar', () => {
   });
 
   it('calls onClose when the backdrop overlay is clicked', async () => {
-    const { container } = render(
-      <Sidebar isOpen={true} onClose={onClose} onLogout={onLogout} />
-    );
+    const { container } = render(<Sidebar isOpen={true} onClose={onClose} onLogout={onLogout} />);
     await screen.findByText('Menu');
 
     const overlay = container.querySelector('div.fixed.inset-0');
@@ -77,9 +83,7 @@ describe('Sidebar', () => {
   });
 
   it('removes the sidebar from the DOM after the closing animation finishes', async () => {
-    const { rerender } = render(
-      <Sidebar isOpen={true} onClose={onClose} onLogout={onLogout} />
-    );
+    const { rerender } = render(<Sidebar isOpen={true} onClose={onClose} onLogout={onLogout} />);
     await screen.findByText('Menu');
 
     rerender(<Sidebar isOpen={false} onClose={onClose} onLogout={onLogout} />);
@@ -92,7 +96,7 @@ describe('Sidebar', () => {
       () => {
         expect(screen.queryByText('Menu')).not.toBeInTheDocument();
       },
-      { timeout: 1000 }
+      { timeout: 1000 },
     );
   });
 });

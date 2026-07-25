@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Sparkles, CheckCircle2, ShieldAlert, KeyRound } from 'lucide-react';
 import type { AiCredentialStatusDto, SetAiCredentialInput } from '@expense-tracker/shared';
@@ -10,10 +10,11 @@ import { Input } from '@/components/Input';
 import { useAuth } from '@/hooks/useAuth';
 import { useDekSession } from '@/hooks/useDekSession';
 import { profileApi } from '@/lib/api';
-import { encryptKey } from '@/lib/crypto/ai-key';
+import { decryptKey, encryptKey } from '@/lib/crypto/ai-key';
 import { clearPendingWrapMetadata, getPendingWrapMetadata } from '@/lib/crypto/dek-session';
-import { listModels, type OpenRouterModel } from '@/lib/ai/openrouter';
+import { fetchUsage, listModels, type OpenRouterModel, type OpenRouterUsage } from '@/lib/ai/openrouter';
 import { ModelPicker } from './ModelPicker';
+import { UsagePanel } from './UsagePanel';
 
 export default function AiSettingsPage() {
   const router = useRouter();
@@ -34,6 +35,10 @@ export default function AiSettingsPage() {
   const [modelsError, setModelsError] = useState<string | null>(null);
   const [modelSaving, setModelSaving] = useState(false);
   const [modelError, setModelError] = useState<string | null>(null);
+
+  const [usage, setUsage] = useState<OpenRouterUsage | null>(null);
+  const [usageLoading, setUsageLoading] = useState(false);
+  const [usageError, setUsageError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -77,6 +82,41 @@ export default function AiSettingsPage() {
       cancelled = true;
     };
   }, []);
+
+  // Usage is read straight from OpenRouter with the user's own key, so it needs
+  // the DEK to be unlocked in this session before the ciphertext can be opened.
+  const loadUsage = useCallback(async (): Promise<void> => {
+    if (dekLoading) return;
+
+    if (!status?.hasKey || !status.keyCiphertext || !status.keyIv) {
+      setUsage(null);
+      setUsageError(null);
+      return;
+    }
+
+    if (!dek) {
+      setUsage(null);
+      setUsageError('Encryption key locked — log out and back in to unlock it before viewing usage.');
+      return;
+    }
+
+    setUsageError(null);
+    setUsageLoading(true);
+
+    try {
+      const apiKey = await decryptKey(status.keyCiphertext, status.keyIv, dek);
+      setUsage(await fetchUsage(apiKey));
+    } catch (err) {
+      setUsage(null);
+      setUsageError(err instanceof Error ? err.message : 'Failed to load OpenRouter usage');
+    } finally {
+      setUsageLoading(false);
+    }
+  }, [dek, dekLoading, status?.hasKey, status?.keyCiphertext, status?.keyIv]);
+
+  useEffect(() => {
+    void loadUsage();
+  }, [loadUsage]);
 
   const handleSaveKey = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
@@ -189,11 +229,6 @@ export default function AiSettingsPage() {
 
       <main className="flex-1 flex flex-col w-full md:h-screen relative px-3 md:px-0 pb-24 md:pb-0 overflow-y-auto overflow-x-hidden">
         <div className="w-full p-margin-mobile md:p-8 flex flex-col gap-stack-md">
-          <button type="button" onClick={() => router.back()} className="flex items-center gap-2 mt-2 text-on-background hover:text-primary transition-colors font-label-caps tracking-wider uppercase">
-            <ArrowLeft className="w-4 h-4" />
-            Back
-          </button>
-
           <div className="mt-2 bg-surface-container-high border-4 border-black shadow-[6px_6px_0_0_rgba(0,0,0,1)]">
             {/* Header */}
             <div className="px-6 py-4 border-b-4 border-black bg-surface-container flex items-center gap-2">
@@ -263,6 +298,13 @@ export default function AiSettingsPage() {
 
               <ModelPicker models={models} loading={modelsLoading} error={modelsError} selectedModel={status?.selectedModel ?? null} saving={modelSaving} onSelect={handleSelectModel} />
             </div>
+
+            {/* Usage */}
+            {status?.hasKey && (
+              <div className="px-6 py-6 flex flex-col gap-4 border-t-4 border-black">
+                <UsagePanel usage={usage} loading={usageLoading} error={usageError} onRefresh={() => void loadUsage()} />
+              </div>
+            )}
           </div>
         </div>
       </main>

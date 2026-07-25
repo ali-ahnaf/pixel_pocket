@@ -9,7 +9,7 @@ import { userOAuthCredentialService, logger } from '.';
 
 /**
  * Business logic for the Gmail bank-alert review queue. The repository only
- * ever persists the pointer (`gmailMessageId` + `vaultId` + `guidanceHint`);
+ * ever persists the pointer (`gmailMessageId` + `vaultId` + `subject` + `guidanceHint`);
  * the email body is re-fetched from Gmail through the user's OAuth token on
  * demand, here, and returned straight to the caller — it is never written to
  * the DB. `resolve` is the single soft-delete operation used both after a
@@ -28,6 +28,7 @@ export class PendingGmailExpenseService {
       gmailMessageId: row.gmailMessageId,
       vaultId: row.vaultId,
       vaultName: row.vault?.name ?? 'Unknown vault',
+      subject: row.subject ?? null,
       guidanceHint: row.guidanceHint,
     }));
   }

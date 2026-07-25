@@ -6,6 +6,8 @@
 
 const CHAT_COMPLETIONS_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const MODELS_URL = 'https://openrouter.ai/api/v1/models';
+const KEY_URL = 'https://openrouter.ai/api/v1/key';
+const CREDITS_URL = 'https://openrouter.ai/api/v1/credits';
 
 const APP_TITLE = 'Pocket Pixel';
 const APP_REFERER = typeof window !== 'undefined' ? window.location.origin : 'https://pocketpixel.app';
@@ -39,6 +41,22 @@ export interface OpenRouterModel {
   readonly contextLength?: number;
 }
 
+/**
+ * Spend figures for the caller's OpenRouter key. `key*` fields describe the one
+ * key that was used to authenticate; `total*` fields describe the whole account
+ * (all keys), and are null when the credits endpoint is unavailable for this key.
+ * All values are in OpenRouter credits (1 credit === 1 USD).
+ */
+export interface OpenRouterUsage {
+  readonly label: string;
+  readonly keyUsage: number;
+  readonly keyLimit: number | null;
+  readonly keyLimitRemaining: number | null;
+  readonly isFreeTier: boolean;
+  readonly totalCredits: number | null;
+  readonly totalUsage: number | null;
+}
+
 interface OpenRouterChatCompletionChoice {
   readonly index: number;
   readonly finish_reason: string | null;
@@ -70,6 +88,23 @@ interface OpenRouterModelListEntry {
 
 interface OpenRouterModelListResponse {
   readonly data: OpenRouterModelListEntry[];
+}
+
+interface OpenRouterKeyResponse {
+  readonly data?: {
+    readonly label?: string;
+    readonly usage?: number;
+    readonly limit?: number | null;
+    readonly limit_remaining?: number | null;
+    readonly is_free_tier?: boolean;
+  };
+}
+
+interface OpenRouterCreditsResponse {
+  readonly data?: {
+    readonly total_credits?: number;
+    readonly total_usage?: number;
+  };
 }
 
 /**
@@ -150,4 +185,56 @@ export async function listModels(): Promise<OpenRouterModel[]> {
     name: entry.name || entry.id,
     contextLength: entry.context_length,
   }));
+}
+
+/**
+ * Fetch spend/limit info for the given OpenRouter key.
+ *
+ * `/api/v1/key` (per-key usage + limit) is authoritative and its failure fails
+ * the call. `/api/v1/credits` (account-wide balance) is best-effort: not every
+ * key can read it, so a failure there degrades to null totals rather than
+ * hiding the per-key numbers we did get.
+ */
+export async function fetchUsage(apiKey: string): Promise<OpenRouterUsage> {
+  const headers = {
+    Authorization: `Bearer ${apiKey}`,
+    'HTTP-Referer': APP_REFERER,
+    'X-Title': APP_TITLE,
+  };
+
+  const [keyResponse, creditsResponse] = await Promise.all([fetch(KEY_URL, { method: 'GET', headers }), fetch(CREDITS_URL, { method: 'GET', headers }).catch(() => null)]);
+
+  if (!keyResponse.ok) {
+    await throwOpenRouterError(keyResponse);
+  }
+
+  const keyBody: OpenRouterKeyResponse = await keyResponse.json();
+  const key = keyBody.data;
+
+  if (!key) {
+    throw new Error('OpenRouter key usage response did not include any data');
+  }
+
+  let totalCredits: number | null = null;
+  let totalUsage: number | null = null;
+
+  if (creditsResponse?.ok) {
+    try {
+      const creditsBody: OpenRouterCreditsResponse = await creditsResponse.json();
+      totalCredits = creditsBody.data?.total_credits ?? null;
+      totalUsage = creditsBody.data?.total_usage ?? null;
+    } catch {
+      // Credits body wasn't valid JSON — keep the per-key numbers, drop the totals.
+    }
+  }
+
+  return {
+    label: key.label || 'OpenRouter key',
+    keyUsage: key.usage ?? 0,
+    keyLimit: key.limit ?? null,
+    keyLimitRemaining: key.limit_remaining ?? null,
+    isFreeTier: key.is_free_tier ?? false,
+    totalCredits,
+    totalUsage,
+  };
 }
