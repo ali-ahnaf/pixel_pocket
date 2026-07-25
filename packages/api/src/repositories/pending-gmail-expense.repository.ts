@@ -2,17 +2,18 @@ import { DataSource, Repository } from 'typeorm';
 import { AppDataSource } from '../data-source';
 import { PendingGmailExpense } from '../entities/PendingGmailExpense.entity';
 
-/** Fields needed to enqueue a pointer — never the email body/content. */
+/** Fields needed to enqueue a pointer — the subject line, never the email body/content. */
 export interface PendingGmailExpenseFields {
   gmailMessageId: string;
   vaultId: string;
+  subject: string | null;
   guidanceHint: string | null;
 }
 
 /**
  * Data-access layer for the Gmail bank-alert review queue. Only the pointer
- * columns (`gmailMessageId`, `vaultId`, `guidanceHint`) are ever read/written
- * here — the email body is never persisted. The TypeORM repository is
+ * columns (`gmailMessageId`, `vaultId`, `subject`, `guidanceHint`) are ever
+ * read/written here — the email body is never persisted. The TypeORM repository is
  * resolved lazily per call so the class can be built before the DataSource
  * initializes and a different DataSource can be injected in tests.
  */

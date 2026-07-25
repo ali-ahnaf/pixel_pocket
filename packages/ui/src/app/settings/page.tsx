@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Settings as SettingsIcon, TrendingUp, TrendingDown, KeyRound, Bell, ChevronRight, Rocket, Code, Bug, BookOpen, ShieldCheck, Sparkles, type LucideIcon } from 'lucide-react';
+import { Settings as SettingsIcon, TrendingUp, TrendingDown, KeyRound, Bell, ChevronRight, Rocket, Code, Bug, BookOpen, type LucideIcon } from 'lucide-react';
 import { AppBar, BottomNavBar, DesktopSidebar } from '@/components';
 import { useDisplaySettings } from '@/hooks/useDisplaySettings';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
@@ -125,42 +125,6 @@ export default function SettingsPage() {
                 <div className="min-w-0">
                   <p className="font-body-sm font-bold truncate">Change Password</p>
                   <p className="text-[12px] text-on-surface-variant truncate group-hover:text-on-primary">Update your secret passphrase</p>
-                </div>
-              </div>
-
-              <ChevronRight className="shrink-0" />
-            </Link>
-
-            <Link
-              href="/settings/google-oauth"
-              className="group flex items-center justify-between gap-4 bg-surface p-4 border-4 border-black shadow-[inset_2px_2px_0_rgba(255,255,255,0.08),inset_-2px_-2px_0_rgba(0,0,0,0.5)] hover:bg-primary hover:text-on-primary active:translate-y-0.5 transition-colors"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="h-10 w-10 border-2 border-black flex items-center justify-center shrink-0 bg-secondary-container">
-                  <ShieldCheck size={20} />
-                </div>
-
-                <div className="min-w-0">
-                  <p className="font-body-sm font-bold truncate">Setup Google OAuth</p>
-                  <p className="text-[12px] text-on-surface-variant truncate group-hover:text-on-primary">Connect your own Google client credentials</p>
-                </div>
-              </div>
-
-              <ChevronRight className="shrink-0" />
-            </Link>
-
-            <Link
-              href="/settings/ai"
-              className="group flex items-center justify-between gap-4 bg-surface p-4 border-4 border-black shadow-[inset_2px_2px_0_rgba(255,255,255,0.08),inset_-2px_-2px_0_rgba(0,0,0,0.5)] hover:bg-primary hover:text-on-primary active:translate-y-0.5 transition-colors"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="h-10 w-10 border-2 border-black flex items-center justify-center shrink-0 bg-secondary-container">
-                  <Sparkles size={20} />
-                </div>
-
-                <div className="min-w-0">
-                  <p className="font-body-sm font-bold truncate">OpenRouter AI</p>
-                  <p className="text-[12px] text-on-surface-variant truncate group-hover:text-on-primary">Save your key and pick an AI model</p>
                 </div>
               </div>
 

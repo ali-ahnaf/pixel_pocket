@@ -395,11 +395,26 @@ describe('GmailService', () => {
       expect(pending.enqueue).toHaveBeenCalledWith('user-1', {
         gmailMessageId: 'm1',
         vaultId: 'vault-9',
+        subject: 'Debit Alert',
         guidanceHint: 'always groceries',
       });
       expect(processed.record).toHaveBeenCalledWith('user-1', 'm1');
       expect(vaults.findOneForUser).toHaveBeenCalledWith('user-1', 'vault-9');
       expect(push.notify).toHaveBeenCalledWith('user-1', { title: 'Pending expense to review', body: 'A new email in MAIN STASH is ready to review', url: '/transactions' });
+    });
+
+    it('enqueues a null subject when the message carries no Subject header', async () => {
+      processed.exists.mockResolvedValue(false);
+      const noSubject: GmailMessage = { ...fetchedMessage, payload: { ...fetchedMessage.payload, headers: [{ name: 'From', value: 'alerts@bank.com' }] } } as GmailMessage;
+      oauth.authorizedGoogleFetch.mockImplementation((_userId, url) => {
+        if (/\/history\?/.test(url as string)) return Promise.resolve(jsonResponse(200, { history: [{ messagesAdded: [{ message: { id: 'm1' } }] }] }));
+        if (/\/messages\/m1\?/.test(url as string)) return Promise.resolve(jsonResponse(200, noSubject));
+        return Promise.reject(new Error(`unexpected url ${String(url)}`));
+      });
+
+      await svc.handlePushNotification({ emailAddress: 'me@example.com', historyId: '250' });
+
+      expect(pending.enqueue).toHaveBeenCalledWith('user-1', expect.objectContaining({ subject: null }));
     });
 
     it('routes a shared label to the watcher whose subject filter matches (specific beats catch-all)', async () => {

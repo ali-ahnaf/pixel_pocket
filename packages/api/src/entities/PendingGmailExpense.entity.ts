@@ -6,8 +6,10 @@ import { BaseEntity } from './BaseEntity';
 /**
  * Gmail bank-alert review queue. Stores only a pointer to a Gmail message —
  * `gmailMessageId` plus the matched watcher's `vaultId` and `guidanceHint` —
- * never the email body/content. The body is re-fetched from Gmail (via the
- * user's OAuth token) on demand at parse time and never persisted.
+ * and the message `subject`, kept so the review list can identify an item
+ * without a Gmail round-trip. The email body/content is never stored: it is
+ * re-fetched from Gmail (via the user's OAuth token) on demand at parse time
+ * and never persisted.
  *
  * A user can have many pending rows (unlike `UserAiCredential`), so `userId`
  * is not unique here. The `(userId, gmailMessageId)` unique index guards
@@ -31,6 +33,10 @@ export class PendingGmailExpense extends BaseEntity {
 
   @Column({ type: 'varchar' })
   vaultId: string;
+
+  /** Nullable: rows enqueued before the subject was captured have none. */
+  @Column({ type: 'varchar', nullable: true })
+  subject: string | null;
 
   @Column({ type: 'varchar', nullable: true })
   guidanceHint: string | null;

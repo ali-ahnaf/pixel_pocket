@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Home, BarChart, User, Coins, LogOut, Settings, type LucideIcon } from 'lucide-react';
+import { Home, BarChart, User, Coins, LogOut, Settings, Sparkles, ShieldCheck, type LucideIcon } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -20,6 +20,8 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Profile', href: '/profile', icon: User },
   { label: 'Debts', href: '/debts', icon: Coins },
   { label: 'Settings', href: '/settings', icon: Settings },
+  { label: 'OpenRouter AI', href: '/settings/ai', icon: Sparkles },
+  { label: 'Gmail Integration', href: '/settings/google-oauth', icon: ShieldCheck },
 ];
 
 interface DesktopSidebarProps {
@@ -57,6 +59,12 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ name, email, ava
   const avatarSrc = resolvedAvatar ?? (hasCheckedStorage ? '/avatars/avatar1.jpeg' : undefined);
   const showAvatarSkeleton = !hasCheckedStorage || !avatarLoaded;
 
+  // Nested routes (/settings/ai) also prefix-match their parent (/settings), so
+  // only the longest matching href is highlighted.
+  const activeHref = NAV_ITEMS.map(({ href }) => href)
+    .filter((href) => (href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`)))
+    .sort((a, b) => b.length - a.length)[0];
+
   const handleLogout = () => {
     signOut();
     router.replace('/signin');
@@ -85,7 +93,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ name, email, ava
 
       <nav className="flex-1 flex flex-col p-4 gap-2 overflow-y-auto">
         {NAV_ITEMS.map(({ label, href, icon: Icon }) => {
-          const isActive = href === '/' ? pathname === '/' : pathname.startsWith(href);
+          const isActive = href === activeHref;
           return (
             <Link
               key={href}

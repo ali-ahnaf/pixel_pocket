@@ -163,11 +163,6 @@ export default function GoogleOAuthSettingsPage() {
 
       <main className="flex-1 flex flex-col w-full md:h-screen relative px-3 md:px-0 pb-24 md:pb-0 overflow-y-auto overflow-x-hidden">
         <div className="w-full p-margin-mobile md:p-8 flex flex-col gap-stack-md">
-          <button type="button" onClick={() => router.back()} className="flex items-center gap-2 mt-2 text-on-background hover:text-primary transition-colors font-label-caps tracking-wider uppercase">
-            <ArrowLeft className="w-4 h-4" />
-            Back
-          </button>
-
           <div className="mt-2 bg-surface-container-high border-4 border-black shadow-[6px_6px_0_0_rgba(0,0,0,1)]">
             {/* Header */}
             <div className="px-6 py-4 border-b-4 border-black bg-surface-container flex items-center gap-2">
@@ -198,6 +193,11 @@ export default function GoogleOAuthSettingsPage() {
                   setError(null);
                 }}
                 autoComplete="off"
+                name="google-oauth-client-id"
+                data-1p-ignore
+                data-lpignore="true"
+                data-form-type="other"
+                spellCheck={false}
               />
 
               <Input
@@ -209,7 +209,12 @@ export default function GoogleOAuthSettingsPage() {
                   setClientSecret(e.target.value);
                   setError(null);
                 }}
-                autoComplete="off"
+                autoComplete="new-password"
+                name="google-oauth-client-secret"
+                data-1p-ignore
+                data-lpignore="true"
+                data-form-type="other"
+                spellCheck={false}
                 error={error || undefined}
               />
 
