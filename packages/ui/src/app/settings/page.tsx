@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Settings as SettingsIcon, TrendingUp, TrendingDown, KeyRound, Bell, ChevronRight, Rocket, Code, Bug, BookOpen, type LucideIcon } from 'lucide-react';
+import { Settings as SettingsIcon, TrendingUp, TrendingDown, KeyRound, Bell, ChevronRight, Rocket, Code, Bug, BookOpen, Sparkles, type LucideIcon } from 'lucide-react';
 import { AppBar, BottomNavBar, DesktopSidebar } from '@/components';
 import { useDisplaySettings } from '@/hooks/useDisplaySettings';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
@@ -73,7 +73,7 @@ function SettingLink({ label, description, icon: Icon, href }: SettingLinkProps)
 }
 
 export default function SettingsPage() {
-  const { showIncome, showExpense, setShowIncome, setShowExpense } = useDisplaySettings();
+  const { showIncome, showExpense, aiTransactionEntryEnabled, setShowIncome, setShowExpense, setAiTransactionEntryEnabled } = useDisplaySettings();
   const { supported: pushSupported, subscribed: pushSubscribed, loading: pushLoading, enable: enablePush, disable: disablePush } = usePushNotifications();
 
   return (
@@ -95,6 +95,18 @@ export default function SettingsPage() {
             <SettingToggle label="Show Income" description="Reveal Loot Gained on the home dashboard" icon={TrendingUp} checked={showIncome} onChange={setShowIncome} />
 
             <SettingToggle label="Show Expense" description="Reveal Gold Spent on the home dashboard" icon={TrendingDown} checked={showExpense} onChange={setShowExpense} />
+          </section>
+
+          <section className="flex flex-col gap-stack-md bg-surface-container border-4 border-black p-4">
+            <h2 className="font-label-caps text-outline uppercase border-b-4 border-black pb-2">Transaction Entry</h2>
+
+            <SettingToggle
+              label="Enable AI transaction entry"
+              description="Open the log modal on the AI prompt instead of the manual form"
+              icon={Sparkles}
+              checked={aiTransactionEntryEnabled}
+              onChange={setAiTransactionEntryEnabled}
+            />
           </section>
 
           <section className="flex flex-col gap-stack-md bg-surface-container border-4 border-black p-4">

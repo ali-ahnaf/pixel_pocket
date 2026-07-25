@@ -128,6 +128,7 @@ const buildImportRequest = (overrides: Partial<BackupPayload> = {}): BackupPaylo
       showIncome: true,
       showExpense: false,
       pushEnabled: false,
+      aiTransactionEntryEnabled: false,
     },
     recurringSkips: [
       {
@@ -222,7 +223,7 @@ describe('BackupService', () => {
       getRepositoryMock.mockImplementation((entity) => {
         if (entity === Expense) return expenseRepo as never;
         if (entity === RecurringOccurrenceSkip) return skipRepo as never;
-        if (entity === UserPreference) return { findOneBy: jest.fn().mockResolvedValue({ showIncome: true, showExpense: false, pushEnabled: false }) } as never;
+        if (entity === UserPreference) return { findOneBy: jest.fn().mockResolvedValue({ showIncome: true, showExpense: false, pushEnabled: false, aiTransactionEntryEnabled: false }) } as never;
         throw new Error('Unexpected repository');
       });
 
@@ -251,7 +252,7 @@ describe('BackupService', () => {
         }),
       );
       expect(parsed.data.recurringSkips).toEqual([{ recurringId: 'recurring-1', date: '2026-08-01', userId: 'user-1' }]);
-      expect(parsed.data.preference).toEqual({ showIncome: true, showExpense: false, pushEnabled: false });
+      expect(parsed.data.preference).toEqual({ showIncome: true, showExpense: false, pushEnabled: false, aiTransactionEntryEnabled: false });
       expect(parsed.data.user).not.toHaveProperty('password');
     });
 
@@ -266,7 +267,7 @@ describe('BackupService', () => {
 
       getRepositoryMock.mockImplementation((entity) => {
         if (entity === Expense || entity === RecurringOccurrenceSkip) return { find: jest.fn().mockResolvedValue([]) } as never;
-        if (entity === UserPreference) return { findOneBy: jest.fn().mockResolvedValue({ showIncome: true, showExpense: false, pushEnabled: false }) } as never;
+        if (entity === UserPreference) return { findOneBy: jest.fn().mockResolvedValue({ showIncome: true, showExpense: false, pushEnabled: false, aiTransactionEntryEnabled: false }) } as never;
         throw new Error('Unexpected repository');
       });
 

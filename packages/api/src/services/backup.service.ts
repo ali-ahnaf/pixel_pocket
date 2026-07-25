@@ -448,6 +448,8 @@ export class BackupService {
         showIncome: dto.data.preference.showIncome,
         showExpense: dto.data.preference.showExpense,
         pushEnabled: dto.data.preference.pushEnabled,
+        // Backups exported before this preference existed carry no value for it.
+        aiTransactionEntryEnabled: dto.data.preference.aiTransactionEntryEnabled ?? false,
         deletedAt: null,
       }),
     );
@@ -492,6 +494,7 @@ export class BackupService {
       showIncome: preference?.showIncome ?? false,
       showExpense: preference?.showExpense ?? false,
       pushEnabled: preference?.pushEnabled ?? false,
+      aiTransactionEntryEnabled: preference?.aiTransactionEntryEnabled ?? false,
     };
   }
 
