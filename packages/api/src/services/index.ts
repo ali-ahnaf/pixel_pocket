@@ -31,10 +31,13 @@ export const preferencesService = new PreferencesService();
 export const backupService = new BackupService();
 export const userOAuthCredentialService = new UserOAuthCredentialService();
 export const pushService = new PushService();
+// Must be constructed before `gmailService`: `GmailService`'s constructor default
+// captures `pendingGmailExpenseService` by value, so a later definition would leave
+// `this.pendingExpenses` undefined and blow up in `handleMessage` at push time.
+export const pendingGmailExpenseService = new PendingGmailExpenseService();
 export const gmailService = new GmailService();
 export const vaultWatchersService = new VaultWatchersService();
 export const userAiCredentialService = new UserAiCredentialService();
-export const pendingGmailExpenseService = new PendingGmailExpenseService();
 
 export {
   UtilService,
