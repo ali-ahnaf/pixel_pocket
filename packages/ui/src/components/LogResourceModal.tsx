@@ -7,6 +7,7 @@ import { iconMapper } from '../lib/iconMapper';
 import { profileApi } from '../lib/api';
 import { TransactionTypeToggle } from './TransactionTypeToggle';
 import { useDekSession } from '../hooks/useDekSession';
+import { useDisplaySettings } from '../hooks/useDisplaySettings';
 import { decryptKey } from '../lib/crypto/ai-key';
 import { chat, type JsonSchemaResponseFormat } from '../lib/ai/openrouter';
 import type { TagDto, VaultDto, ParsedTransaction } from '@expense-tracker/shared';
@@ -38,8 +39,12 @@ interface LogResourceModalProps {
 
 export function LogResourceModal({ isOpen, onClose, onSuccess, userId, selectedMonth, selectedYear }: LogResourceModalProps) {
   const { dek, loading: dekLoading } = useDekSession();
+  const { aiTransactionEntryEnabled, loaded: preferencesLoaded } = useDisplaySettings();
 
-  const [manualEntry, setManualEntry] = useState(false);
+  // `null` means "follow the preference": AI entry on opens on the prompt, manual
+  // entry on opens on the form. The user's toggle (or a successful parse) pins it.
+  const [manualEntryOverride, setManualEntryOverride] = useState<boolean | null>(null);
+  const manualEntry = aiTransactionEntryEnabled ? (manualEntryOverride ?? false) : true;
   const [promptText, setPromptText] = useState('');
   const [isPrompting, setIsPrompting] = useState(false);
   const [promptResult, setPromptResult] = useState<string | null>(null);
@@ -68,7 +73,7 @@ export function LogResourceModal({ isOpen, onClose, onSuccess, userId, selectedM
 
   useEffect(() => {
     if (isOpen) {
-      setManualEntry(false);
+      setManualEntryOverride(null);
       setPromptText('');
       setPromptResult(null);
       setPromptNeedsAiSetup(false);
@@ -199,10 +204,10 @@ prompt: ${promptText.trim()}`;
       setIsExpense(res.type === 'expense');
       setSelectedTags(availableTags.filter((tag) => res.tagIds.includes(tag.id)));
       setSelectedVaultId(res.vaultId ?? null);
-      setManualEntry(true);
+      setManualEntryOverride(true);
     } catch (err) {
       setPromptResult(profileApi.parseError(err));
-      setManualEntry(true);
+      setManualEntryOverride(true);
     } finally {
       setIsPrompting(false);
     }
@@ -305,7 +310,7 @@ prompt: ${promptText.trim()}`;
 
         {/* Content Area */}
         <main className="px-4 space-y-5 pb-3 overflow-y-auto">
-          {!manualEntry && (
+          {preferencesLoaded && !manualEntry && (
             <div className="space-y-3">
               <textarea
                 className="w-full h-32 p-4 bg-surface-container-lowest border-4 border-black shadow-[inset_4px_4px_0px_rgba(0,0,0,0.6),_inset_-2px_-2px_0px_rgba(255,255,255,0.05)] font-body-lg text-on-surface focus:outline-none placeholder:text-surface-variant resize-none"
@@ -334,20 +339,23 @@ prompt: ${promptText.trim()}`;
             </div>
           )}
 
-          <button
-            onClick={() => setManualEntry(!manualEntry)}
-            className="w-full h-12 border-4 border-black bg-surface-container-low text-on-surface font-label-caps flex items-center justify-between px-4 active:translate-y-0.5 hover:bg-surface-container-highest transition-colors"
-          >
-            <span className="flex items-center gap-2">
-              {manualEntry ? <Sparkles size={16} /> : <SlidersHorizontal size={16} />}
-              MANUAL ENTRY
-            </span>
-            <span className={`w-12 h-6 border-4 border-black flex items-center transition-colors ${manualEntry ? 'bg-primary justify-end' : 'bg-surface-container-highest justify-start'}`}>
-              <span className="w-4 h-4 bg-black" />
-            </span>
-          </button>
+          {/* Only offered when AI entry is enabled — otherwise there is nothing to switch back to. */}
+          {preferencesLoaded && aiTransactionEntryEnabled && (
+            <button
+              onClick={() => setManualEntryOverride(!manualEntry)}
+              className="w-full h-12 border-4 border-black bg-surface-container-low text-on-surface font-label-caps flex items-center justify-between px-4 active:translate-y-0.5 hover:bg-surface-container-highest transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                {manualEntry ? <Sparkles size={16} /> : <SlidersHorizontal size={16} />}
+                MANUAL ENTRY
+              </span>
+              <span className={`w-12 h-6 border-4 border-black flex items-center transition-colors ${manualEntry ? 'bg-primary justify-end' : 'bg-surface-container-highest justify-start'}`}>
+                <span className="w-4 h-4 bg-black" />
+              </span>
+            </button>
+          )}
 
-          {manualEntry && (
+          {preferencesLoaded && manualEntry && (
             <>
               {/* Name Input */}
               <div className="space-y-2">

@@ -49,7 +49,7 @@ describe('PreferencesService', () => {
 
       const result = await service.getOrCreate('user-1');
 
-      expect(preferences.createEntity).toHaveBeenCalledWith({ userId: 'user-1', showIncome: false, showExpense: false, pushEnabled: false });
+      expect(preferences.createEntity).toHaveBeenCalledWith({ userId: 'user-1', showIncome: false, showExpense: false, pushEnabled: false, aiTransactionEntryEnabled: false });
       expect(preferences.save).toHaveBeenCalledTimes(1);
       expect(result).toBe(saved);
     });
@@ -65,6 +65,17 @@ describe('PreferencesService', () => {
 
       expect(pref.showIncome).toBe(true);
       expect(pref.showExpense).toBe(false);
+      expect(preferences.save).toHaveBeenCalledTimes(1);
+    });
+
+    it('updates the AI transaction entry flag when provided', async () => {
+      const pref = buildPreference({ aiTransactionEntryEnabled: false });
+      preferences.findByUserId.mockResolvedValue(pref);
+      preferences.save.mockImplementation((p) => Promise.resolve(p));
+
+      await service.update('user-1', { aiTransactionEntryEnabled: true });
+
+      expect(pref.aiTransactionEntryEnabled).toBe(true);
       expect(preferences.save).toHaveBeenCalledTimes(1);
     });
 

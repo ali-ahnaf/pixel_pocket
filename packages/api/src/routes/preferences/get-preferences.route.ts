@@ -9,7 +9,12 @@ router.get(
   '/',
   asyncHandler(async (req: Request, res: Response) => {
     const preference = await preferencesService.getOrCreate(req.user!.userId);
-    const dto: UserPreferenceDto = { showIncome: preference.showIncome, showExpense: preference.showExpense, pushEnabled: preference.pushEnabled };
+    const dto: UserPreferenceDto = {
+      showIncome: preference.showIncome,
+      showExpense: preference.showExpense,
+      pushEnabled: preference.pushEnabled,
+      aiTransactionEntryEnabled: preference.aiTransactionEntryEnabled,
+    };
     return utilService.replyOk(res, dto);
   }),
 );

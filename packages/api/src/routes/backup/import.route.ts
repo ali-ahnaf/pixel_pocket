@@ -148,6 +148,8 @@ const importDataSchema = Joi.object<BackupPayload>({
     preference: Joi.object<UserPreferenceDto>({
       showIncome: Joi.boolean().required(),
       showExpense: Joi.boolean().required(),
+      // Optional: backups exported before this preference existed omit it.
+      aiTransactionEntryEnabled: Joi.boolean(),
     }).required(),
     tags: Joi.array().items(tagValidateSchema).min(0).required(),
   }).required(),

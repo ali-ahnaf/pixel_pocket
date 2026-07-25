@@ -136,5 +136,4 @@ export class TransactionsService {
     await this.transactions.softDelete(id);
     logger.info('Deleted transaction', { userId, transactionId: id });
   }
-
 }
