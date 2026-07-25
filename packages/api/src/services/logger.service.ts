@@ -24,10 +24,22 @@ export class Logger {
     return this.useColor ? `${color}${text}${RESET}` : text;
   }
 
+  /**
+   * `JSON.stringify` replacer that expands `Error` values (whose `message`/`stack`
+   * are non-enumerable and would otherwise serialize to `{}`) into a plain object,
+   * so `logger.error('...', { err })` surfaces the real message and stack.
+   */
+  private serializeErrors(_key: string, value: unknown): unknown {
+    if (value instanceof Error) {
+      return { ...value, name: value.name, message: value.message, stack: value.stack };
+    }
+    return value;
+  }
+
   private write(level: LogLevel, message: string, meta?: unknown): void {
     const time = this.paint(DIM, new Date().toISOString());
     const levelLabel = this.paint(LEVEL_COLOR[level], level.toUpperCase().padEnd(5));
-    const metaText = meta !== undefined ? ` ${typeof meta === 'string' ? meta : JSON.stringify(meta)}` : '';
+    const metaText = meta !== undefined ? ` ${typeof meta === 'string' ? meta : JSON.stringify(meta, this.serializeErrors)}` : '';
     const line = `${time} ${levelLabel} ${message}${metaText}`;
 
     if (level === 'error') {
