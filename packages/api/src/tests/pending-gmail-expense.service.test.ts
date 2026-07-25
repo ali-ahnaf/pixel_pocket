@@ -26,6 +26,7 @@ const buildRow = (overrides: Partial<PendingGmailExpense> = {}): PendingGmailExp
     userId: 'user-1',
     gmailMessageId: 'gmail-msg-1',
     vaultId: 'vault-1',
+    subject: 'Debit Alert',
     guidanceHint: 'always groceries',
     vault: buildVault(),
     ...overrides,
@@ -76,7 +77,7 @@ describe('PendingGmailExpenseService', () => {
   });
 
   describe('list', () => {
-    it('maps pending rows to PendingGmailExpenseDto, taking vaultName from the loaded vault relation', async () => {
+    it('maps pending rows to PendingGmailExpenseDto, taking vaultName from the loaded vault relation and the stored subject', async () => {
       const rows = [buildRow({ vault: buildVault({ name: 'GROCERIES' }) })];
       pending.findManyForUser.mockResolvedValue(rows);
 
@@ -89,9 +90,18 @@ describe('PendingGmailExpenseService', () => {
           gmailMessageId: 'gmail-msg-1',
           vaultId: 'vault-1',
           vaultName: 'GROCERIES',
+          subject: 'Debit Alert',
           guidanceHint: 'always groceries',
         },
       ]);
+    });
+
+    it('maps a row stored before subjects were captured to a null subject', async () => {
+      pending.findManyForUser.mockResolvedValue([buildRow({ subject: null })]);
+
+      const result = await service.list('user-1');
+
+      expect(result[0].subject).toBeNull();
     });
 
     it('falls back to "Unknown vault" when the vault relation is missing', async () => {
@@ -194,6 +204,7 @@ describe('PendingGmailExpenseService', () => {
     const fields: PendingGmailExpenseFields = {
       gmailMessageId: 'gmail-msg-1',
       vaultId: 'vault-1',
+      subject: 'Debit Alert',
       guidanceHint: 'always groceries',
     };
 

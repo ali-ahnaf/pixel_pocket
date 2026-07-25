@@ -163,7 +163,10 @@ export default function DashboardPage() {
   const tagDropdownRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [refetchKey, setRefetchKey] = useState(0);
-  const [dateSortOrder, setDateSortOrder] = useState<'desc' | 'asc'>('desc');
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+  const [sortField, setSortField] = useState<'date' | 'amount'>('date');
+  const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
 
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
@@ -205,6 +208,9 @@ export default function DashboardPage() {
       if (tagDropdownRef.current && !tagDropdownRef.current.contains(e.target as Node)) {
         setTagDropdownOpen(false);
       }
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(e.target as Node)) {
+        setSortDropdownOpen(false);
+      }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -229,7 +235,14 @@ export default function DashboardPage() {
   const filteredDrops = transactions
     .filter((t) => matchesVault(t.vaultId) && matchesTag(t.tags))
     .slice()
-    .sort((a, b) => (dateSortOrder === 'desc' ? b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt) : a.date.localeCompare(b.date) || a.updatedAt.localeCompare(b.updatedAt)));
+    .sort((a, b) => {
+      const byDate = sortOrder === 'desc' ? b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt) : a.date.localeCompare(b.date) || a.updatedAt.localeCompare(b.updatedAt);
+      if (sortField === 'amount') {
+        const byAmount = sortOrder === 'desc' ? b.amount - a.amount : a.amount - b.amount;
+        return byAmount || byDate;
+      }
+      return byDate;
+    });
   const filteredOccurrences = occurrences.filter((o) => matchesVault(o.vaultId) && matchesTag(o.tags));
 
   const handleApplyOccurrence = async (occ: OccurrenceDto) => {
@@ -406,32 +419,62 @@ export default function DashboardPage() {
             {/* Transactions List */}
             <Card className="lg:col-span-2 flex flex-col gap-4 !p-4 bg-surface-container lg:min-h-0 lg:overflow-hidden">
               <div className="flex justify-between items-center border-b-4 border-black pb-2">
+                <h3 className="font-label-caps text-outline uppercase">Recent Drops</h3>
                 <div className="flex items-center gap-2">
-                  <h3 className="font-label-caps text-outline uppercase">Recent Drops</h3>
+                  <div ref={sortDropdownRef} className="relative">
+                    <button
+                      onClick={() => setSortDropdownOpen((o) => !o)}
+                      aria-label="Choose sort field"
+                      className="flex items-center justify-center gap-1 w-20 h-7 font-label-caps text-[10px] uppercase bg-surface border-2 border-black text-on-surface px-2 hover:bg-surface-container-highest active:translate-y-px transition-transform"
+                    >
+                      {sortField === 'date' ? 'Date' : 'Amount'}
+                      <ChevronDown size={10} className={`transition-transform ${sortDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {sortDropdownOpen && (
+                      <div className="absolute left-0 right-0 top-full mt-1 z-50 border-2 border-black bg-surface shadow-[4px_4px_0_0_rgba(0,0,0,1)] flex flex-col">
+                        {(['date', 'amount'] as const).map((field) => (
+                          <button
+                            key={field}
+                            onClick={() => {
+                              setSortField(field);
+                              setSortDropdownOpen(false);
+                            }}
+                            className={`font-label-caps text-[10px] uppercase text-left px-3 py-2 transition-colors border-b border-black last:border-b-0 ${sortField === field ? 'bg-primary text-on-primary' : 'text-on-surface hover:bg-surface-container-highest'}`}
+                          >
+                            {field === 'date' ? 'Date' : 'Amount'}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <button
-                    onClick={() => setDateSortOrder((o) => (o === 'desc' ? 'asc' : 'desc'))}
-                    aria-label="Sort by date"
-                    title={dateSortOrder === 'desc' ? 'Newest first' : 'Oldest first'}
-                    className="flex items-center gap-1 font-label-caps text-[10px] uppercase bg-surface border-2 border-black text-on-surface px-2 py-1 hover:bg-surface-container-highest active:translate-y-px transition-transform"
+                    onClick={() => setSortOrder((o) => (o === 'desc' ? 'asc' : 'desc'))}
+                    aria-label={sortField === 'date' ? 'Sort by date' : 'Sort by amount'}
+                    title={sortField === 'date' ? (sortOrder === 'desc' ? 'Newest first' : 'Oldest first') : sortOrder === 'desc' ? 'Largest first' : 'Smallest first'}
+                    className="flex items-center justify-center gap-1 w-20 h-7 font-label-caps text-[10px] uppercase bg-surface border-2 border-black text-on-surface px-2 hover:bg-surface-container-highest active:translate-y-px transition-transform"
                   >
-                    <ArrowUpDown size={10} className={`transition-transform ${dateSortOrder === 'asc' ? 'rotate-180' : ''}`} />
-                    {dateSortOrder === 'desc' ? 'Newest' : 'Oldest'}
+                    <ArrowUpDown size={10} className={`transition-transform ${sortOrder === 'asc' ? 'rotate-180' : ''}`} />
                   </button>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
                 <div ref={vaultDropdownRef} className="relative">
                   <button
                     onClick={() => setVaultDropdownOpen((o) => !o)}
-                    className="flex items-center gap-1.5 font-label-caps text-[10px] uppercase bg-surface border-2 border-black text-on-surface px-2 py-1 hover:bg-surface-container-highest active:translate-y-px transition-transform"
+                    className="flex items-center justify-between gap-1.5 w-full font-label-caps text-[10px] uppercase bg-surface border-2 border-black text-on-surface px-2 py-1.5 hover:bg-surface-container-highest active:translate-y-px transition-transform"
                   >
-                    {selectedVaultFilter.length === 0
-                      ? 'All Vaults'
-                      : selectedVaultFilter.length === 1
-                        ? (vaults.find((v) => v.id === selectedVaultFilter[0])?.name ?? 'All Vaults')
-                        : `${selectedVaultFilter.length} Vaults`}
-                    <ChevronDown size={10} className={`transition-transform ${vaultDropdownOpen ? 'rotate-180' : ''}`} />
+                    <span className="truncate">
+                      {selectedVaultFilter.length === 0
+                        ? 'All Vaults'
+                        : selectedVaultFilter.length === 1
+                          ? (vaults.find((v) => v.id === selectedVaultFilter[0])?.name ?? 'All Vaults')
+                          : `${selectedVaultFilter.length} Vaults`}
+                    </span>
+                    <ChevronDown size={10} className={`shrink-0 transition-transform ${vaultDropdownOpen ? 'rotate-180' : ''}`} />
                   </button>
                   {vaultDropdownOpen && (
-                    <div className="absolute right-0 top-full mt-1 z-50 min-w-[120px] border-2 border-black bg-surface shadow-[4px_4px_0_0_rgba(0,0,0,1)] flex flex-col">
+                    <div className="absolute left-0 right-0 top-full mt-1 z-50 border-2 border-black bg-surface shadow-[4px_4px_0_0_rgba(0,0,0,1)] flex flex-col max-h-64 overflow-y-auto">
                       <button
                         onClick={() => {
                           setSelectedVaultFilter([]);
@@ -455,46 +498,46 @@ export default function DashboardPage() {
                     </div>
                   )}
                 </div>
-              </div>
 
-              <div ref={tagDropdownRef} className="relative">
-                <button
-                  onClick={() => setTagDropdownOpen((o) => !o)}
-                  className="flex items-center justify-between gap-1.5 w-full font-label-caps text-[10px] uppercase bg-surface border-2 border-black text-on-surface px-2 py-1.5 hover:bg-surface-container-highest active:translate-y-px transition-transform"
-                >
-                  <span>
-                    {selectedTagFilter.length === 0
-                      ? 'All Tags'
-                      : selectedTagFilter.length === 1
-                        ? (tags.find((t) => t.id === selectedTagFilter[0])?.name ?? 'All Tags')
-                        : `${selectedTagFilter.length} Tags`}
-                  </span>
-                  <ChevronDown size={10} className={`transition-transform ${tagDropdownOpen ? 'rotate-180' : ''}`} />
-                </button>
-                {tagDropdownOpen && (
-                  <div className="absolute left-0 right-0 top-full mt-1 z-50 border-2 border-black bg-surface shadow-[4px_4px_0_0_rgba(0,0,0,1)] flex flex-col max-h-64 overflow-y-auto">
-                    <button
-                      onClick={() => {
-                        setSelectedTagFilter([]);
-                        setTagDropdownOpen(false);
-                      }}
-                      className={`font-label-caps text-[10px] uppercase text-left px-3 py-2 transition-colors border-b border-black ${selectedTagFilter.length === 0 ? 'bg-primary text-on-primary' : 'text-on-surface hover:bg-surface-container-highest'}`}
-                    >
-                      All Tags
-                    </button>
-                    {tags.map((t) => (
+                <div ref={tagDropdownRef} className="relative">
+                  <button
+                    onClick={() => setTagDropdownOpen((o) => !o)}
+                    className="flex items-center justify-between gap-1.5 w-full font-label-caps text-[10px] uppercase bg-surface border-2 border-black text-on-surface px-2 py-1.5 hover:bg-surface-container-highest active:translate-y-px transition-transform"
+                  >
+                    <span className="truncate">
+                      {selectedTagFilter.length === 0
+                        ? 'All Tags'
+                        : selectedTagFilter.length === 1
+                          ? (tags.find((t) => t.id === selectedTagFilter[0])?.name ?? 'All Tags')
+                          : `${selectedTagFilter.length} Tags`}
+                    </span>
+                    <ChevronDown size={10} className={`shrink-0 transition-transform ${tagDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {tagDropdownOpen && (
+                    <div className="absolute left-0 right-0 top-full mt-1 z-50 border-2 border-black bg-surface shadow-[4px_4px_0_0_rgba(0,0,0,1)] flex flex-col max-h-64 overflow-y-auto">
                       <button
-                        key={t.id}
                         onClick={() => {
-                          setSelectedTagFilter((prev) => (prev.includes(t.id) ? prev.filter((id) => id !== t.id) : [...prev, t.id]));
+                          setSelectedTagFilter([]);
+                          setTagDropdownOpen(false);
                         }}
-                        className={`font-label-caps text-[10px] uppercase text-left px-3 py-2 transition-colors border-b border-black last:border-b-0 ${selectedTagFilter.includes(t.id) ? 'bg-primary text-on-primary' : 'text-on-surface hover:bg-surface-container-highest'}`}
+                        className={`font-label-caps text-[10px] uppercase text-left px-3 py-2 transition-colors border-b border-black ${selectedTagFilter.length === 0 ? 'bg-primary text-on-primary' : 'text-on-surface hover:bg-surface-container-highest'}`}
                       >
-                        {t.name}
+                        All Tags
                       </button>
-                    ))}
-                  </div>
-                )}
+                      {tags.map((t) => (
+                        <button
+                          key={t.id}
+                          onClick={() => {
+                            setSelectedTagFilter((prev) => (prev.includes(t.id) ? prev.filter((id) => id !== t.id) : [...prev, t.id]));
+                          }}
+                          className={`font-label-caps text-[10px] uppercase text-left px-3 py-2 transition-colors border-b border-black last:border-b-0 ${selectedTagFilter.includes(t.id) ? 'bg-primary text-on-primary' : 'text-on-surface hover:bg-surface-container-highest'}`}
+                        >
+                          {t.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="flex flex-col gap-4 lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pr-1">

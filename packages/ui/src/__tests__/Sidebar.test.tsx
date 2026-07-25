@@ -16,6 +16,8 @@ vi.mock('lucide-react', () => ({
   Coins: () => React.createElement('span', null, 'Coins'),
   KeyRound: () => React.createElement('span', null, 'KeyRound'),
   Settings: () => React.createElement('span', null, 'SettingsIcon'),
+  Sparkles: () => React.createElement('span', null, 'Sparkles'),
+  ShieldCheck: () => React.createElement('span', null, 'ShieldCheck'),
   LogOut: () => React.createElement('span', null, 'LogOut'),
 }));
 

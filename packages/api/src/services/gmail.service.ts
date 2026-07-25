@@ -303,7 +303,7 @@ export class GmailService {
    * message already in the ledger is skipped **before any work**, so a Pub/Sub
    * replay never double-enqueues. The message is matched to a vault watcher by
    * label **and subject**; on a match, only a pointer (`gmailMessageId` +
-   * `vaultId` + `guidanceHint`) is enqueued via `PendingGmailExpenseService` — no
+   * `vaultId` + `subject` + `guidanceHint`) is enqueued via `PendingGmailExpenseService` — no
    * email body is stored and no AI runs server-side (the email is re-fetched and
    * parsed client-side, with the user's own OpenRouter key, when they review the
    * pending item). No matching watcher falls straight through to `record` so the
@@ -318,6 +318,7 @@ export class GmailService {
       await this.pendingExpenses.enqueue(userId, {
         gmailMessageId: message.id,
         vaultId: watcher.vaultId,
+        subject: content.subject || null,
         guidanceHint: watcher.guidanceHint,
       });
 

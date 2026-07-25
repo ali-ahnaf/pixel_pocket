@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { X, Coins, LogOut, Settings } from 'lucide-react';
+import { X, Coins, LogOut, Settings, Sparkles, ShieldCheck } from 'lucide-react';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -56,6 +56,24 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onLogout }) =
           >
             <Settings className="w-5 h-5" />
             <span className="font-label-caps tracking-wider uppercase">Settings</span>
+          </Link>
+
+          <Link
+            href="/settings/ai"
+            onClick={onClose}
+            className="flex items-center gap-3 p-3 text-on-surface bg-surface-container-low border-4 border-black hover:bg-primary hover:text-on-primary hover:translate-x-1 active:translate-y-0.5 transition-all"
+          >
+            <Sparkles className="w-5 h-5" />
+            <span className="font-label-caps tracking-wider uppercase">OpenRouter AI</span>
+          </Link>
+
+          <Link
+            href="/settings/google-oauth"
+            onClick={onClose}
+            className="flex items-center gap-3 p-3 text-on-surface bg-surface-container-low border-4 border-black hover:bg-primary hover:text-on-primary hover:translate-x-1 active:translate-y-0.5 transition-all"
+          >
+            <ShieldCheck className="w-5 h-5" />
+            <span className="font-label-caps tracking-wider uppercase">Gmail Integration</span>
           </Link>
         </nav>
 
