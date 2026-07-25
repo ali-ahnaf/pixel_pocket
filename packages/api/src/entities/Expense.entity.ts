@@ -43,9 +43,6 @@ export class Expense extends BaseEntity {
   @Column({ type: 'varchar', nullable: true })
   sourceRecurringId: string | null;
 
-  @Column({ type: 'boolean', default: true })
-  isCommitted: boolean;
-
   @ManyToOne(() => User, (user) => user.expenses, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })
   user: User;

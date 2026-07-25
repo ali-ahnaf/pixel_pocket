@@ -14,7 +14,7 @@ jest.mock('../services', () => ({
   },
 }));
 
-type TransactionsRepositoryMock = jest.Mocked<Pick<TransactionsRepository, 'findManyForUser' | 'findOneForUser' | 'createEntity' | 'save' | 'replaceTags' | 'softDelete' | 'hardRemove'>>;
+type TransactionsRepositoryMock = jest.Mocked<Pick<TransactionsRepository, 'findManyForUser' | 'findOneForUser' | 'createEntity' | 'save' | 'replaceTags' | 'softDelete'>>;
 
 const buildTransaction = (overrides: Partial<Expense> = {}): Expense =>
   ({
@@ -31,7 +31,6 @@ const buildTransaction = (overrides: Partial<Expense> = {}): Expense =>
       icon: 'wallet',
     },
     transactionTags: [],
-    isCommitted: true,
     createdAt: new Date('2025-06-15T10:00:00Z'),
     updatedAt: new Date('2025-06-15T10:00:00Z'),
     ...overrides,
@@ -49,7 +48,6 @@ describe('TransactionsService', () => {
       save: jest.fn(),
       replaceTags: jest.fn(),
       softDelete: jest.fn(),
-      hardRemove: jest.fn(),
     };
 
     service = new TransactionsService(transactions as unknown as TransactionsRepository);
@@ -212,54 +210,4 @@ describe('TransactionsService', () => {
     });
   });
 
-  describe('commit', () => {
-    it('marks an existing transaction as committed', async () => {
-      const transaction = buildTransaction({ isCommitted: false });
-
-      transactions.findOneForUser.mockResolvedValue(transaction);
-      transactions.save.mockImplementation((tx) => Promise.resolve(tx));
-
-      const result = await service.commit('user-1', 'tx-1');
-
-      expect(transactions.findOneForUser).toHaveBeenCalledWith('user-1', 'tx-1');
-      expect(transaction.isCommitted).toBe(true);
-      expect(transactions.save).toHaveBeenCalledWith(transaction);
-      expect(result.isCommitted).toBe(true);
-    });
-
-    it('throws when the transaction is missing', async () => {
-      transactions.findOneForUser.mockResolvedValue(null);
-
-      await expect(service.commit('user-1', 'missing-id')).rejects.toMatchObject({
-        constructor: AppError,
-        statusCode: 404,
-      });
-
-      expect(transactions.save).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('discard', () => {
-    it('hard-removes an existing transaction', async () => {
-      const transaction = buildTransaction({ isCommitted: false });
-
-      transactions.findOneForUser.mockResolvedValue(transaction);
-
-      await service.discard('user-1', 'tx-1');
-
-      expect(transactions.findOneForUser).toHaveBeenCalledWith('user-1', 'tx-1');
-      expect(transactions.hardRemove).toHaveBeenCalledWith('tx-1');
-    });
-
-    it('throws when the transaction is missing', async () => {
-      transactions.findOneForUser.mockResolvedValue(null);
-
-      await expect(service.discard('user-1', 'missing-id')).rejects.toMatchObject({
-        constructor: AppError,
-        statusCode: 404,
-      });
-
-      expect(transactions.hardRemove).not.toHaveBeenCalled();
-    });
-  });
 });

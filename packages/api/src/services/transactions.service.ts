@@ -37,7 +37,7 @@ export class TransactionsService {
       vaultId: tx.vaultId,
       vault: tx.vault ? { id: tx.vault.id, name: tx.vault.name, icon: tx.vault.icon } : null,
       tags: tx.transactionTags?.map((tt) => tt.tag) ?? [],
-      isCommitted: tx.isCommitted,
+      isCommitted: true,
       createdAt: tx.createdAt.toISOString(),
       updatedAt: tx.updatedAt.toISOString(),
     }));
@@ -137,34 +137,4 @@ export class TransactionsService {
     logger.info('Deleted transaction', { userId, transactionId: id });
   }
 
-  /**
-   * Confirm an uncommitted transaction (e.g. one imported from a Gmail watcher)
-   * so it becomes a permanent part of the ledger.
-   */
-  async commit(userId: string, id: string): Promise<Expense> {
-    const transaction = await this.transactions.findOneForUser(userId, id);
-    if (!transaction) {
-      throw new AppError('Transaction not found', 404);
-    }
-
-    transaction.isCommitted = true;
-    const saved = await this.transactions.save(transaction);
-
-    logger.info('Committed transaction', { userId, transactionId: id });
-    return saved;
-  }
-
-  /**
-   * Reject an uncommitted transaction, hard-deleting it (and its tag links) from
-   * the ledger.
-   */
-  async discard(userId: string, id: string): Promise<void> {
-    const transaction = await this.transactions.findOneForUser(userId, id);
-    if (!transaction) {
-      throw new AppError('Transaction not found', 404);
-    }
-
-    await this.transactions.hardRemove(id);
-    logger.info('Discarded transaction', { userId, transactionId: id });
-  }
 }

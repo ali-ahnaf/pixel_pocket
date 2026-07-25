@@ -9,7 +9,7 @@ import { iconMapper } from '@/lib/iconMapper';
 import { profileApi } from '@/lib/api';
 import { formatCurrency, formatDate, formatTime } from '@/lib/helpers/formatters';
 import type { User, VaultDto, TagDto, TransactionDto, OccurrenceDto } from '@expense-tracker/shared';
-import { Package, ChevronLeft, ChevronRight, ChevronDown, Plus, X, Check, Repeat, Eye, EyeOff, ArrowUpDown } from 'lucide-react';
+import { Package, ChevronLeft, ChevronRight, ChevronDown, Plus, X, Check, Repeat, Eye, EyeOff, ArrowUpDown, Search } from 'lucide-react';
 
 const MONTH_NAMES = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
 
@@ -159,6 +159,7 @@ export default function DashboardPage() {
   const didInitVaultFilter = useRef(false);
   const [tags, setTags] = useState<TagDto[]>([]);
   const [selectedTagFilter, setSelectedTagFilter] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [tagDropdownOpen, setTagDropdownOpen] = useState(false);
   const tagDropdownRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -232,8 +233,14 @@ export default function DashboardPage() {
 
   const matchesVault = (vaultId: string | null) => selectedVaultFilter.length === 0 || selectedVaultFilter.includes(vaultId ?? '');
   const matchesTag = (txTags: { id: string }[]) => selectedTagFilter.length === 0 || txTags.some((t) => selectedTagFilter.includes(t.id));
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const matchesSearch = (item: { title: string | null; vault: { name: string } | null; tags: { name: string }[] }) => {
+    if (!normalizedSearch) return true;
+    const haystack = [item.title ?? '', item.vault?.name ?? '', ...item.tags.map((t) => t.name)];
+    return haystack.some((value) => value.toLowerCase().includes(normalizedSearch));
+  };
   const filteredDrops = transactions
-    .filter((t) => matchesVault(t.vaultId) && matchesTag(t.tags))
+    .filter((t) => matchesVault(t.vaultId) && matchesTag(t.tags) && matchesSearch(t))
     .slice()
     .sort((a, b) => {
       const byDate = sortOrder === 'desc' ? b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt) : a.date.localeCompare(b.date) || a.updatedAt.localeCompare(b.updatedAt);
@@ -243,7 +250,7 @@ export default function DashboardPage() {
       }
       return byDate;
     });
-  const filteredOccurrences = occurrences.filter((o) => matchesVault(o.vaultId) && matchesTag(o.tags));
+  const filteredOccurrences = occurrences.filter((o) => matchesVault(o.vaultId) && matchesTag(o.tags) && matchesSearch(o));
 
   const handleApplyOccurrence = async (occ: OccurrenceDto) => {
     if (!userId) return;
@@ -458,6 +465,23 @@ export default function DashboardPage() {
                 </div>
               </div>
 
+              <div className="relative">
+                <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-outline pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  aria-label="Search transactions"
+                  placeholder="Search drops..."
+                  className="w-full font-label-caps text-[10px] uppercase bg-surface border-2 border-black text-on-surface pl-7 pr-7 py-1.5 placeholder:text-outline focus:outline-none focus:bg-surface-container-highest"
+                />
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery('')} aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface transition-colors">
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <div ref={vaultDropdownRef} className="relative">
                   <button
@@ -557,8 +581,8 @@ export default function DashboardPage() {
                 ) : filteredDrops.length === 0 && filteredOccurrences.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
                     <Package className="text-outline opacity-40" size={48} />
-                    <p className="font-label-caps text-outline uppercase">No drops this month</p>
-                    <p className="font-body-sm text-on-surface-variant">Log a transaction to get started</p>
+                    <p className="font-label-caps text-outline uppercase">{normalizedSearch ? 'No matching drops' : 'No drops this month'}</p>
+                    <p className="font-body-sm text-on-surface-variant">{normalizedSearch ? 'Try a different search term' : 'Log a transaction to get started'}</p>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3">
