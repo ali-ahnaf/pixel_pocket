@@ -1,12 +1,22 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { AppBar, Card, ProgressBar, Button, BottomNavBar, DesktopSidebar, WizardFab, WizardChatSheet } from '@/components';
+import { CHART_MAX_SERIES } from '@/lib/chartPalette';
+import type { ChartPoint, ChartSeries } from '@/lib/chartPalette';
+
 import { useAuth } from '@/hooks/useAuth';
 import { Package, ChevronDown, TrendingUp, TrendingDown, CircleDollarSign, Flame, Gem, Calendar, ChevronLeft, ChevronRight, Vault, LineChart, Download } from 'lucide-react';
 import { iconMapper } from '@/lib/iconMapper';
 import { profileApi } from '@/lib/api';
 import type { User, VaultDto, TransactionDto } from '@expense-tracker/shared';
+
+// Loaded lazily so recharts ships in its own chunk instead of the shared bundle.
+const VaultExpenseChart = dynamic(() => import('@/components/VaultExpenseChart').then((m) => m.VaultExpenseChart), {
+  ssr: false,
+  loading: () => <div className="h-[240px] bg-surface-container-highest border-4 border-black animate-pulse" />,
+});
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -244,40 +254,62 @@ export default function StatsPage() {
   const [selectedLineVaultId, setSelectedLineVaultId] = useState<string>('all');
   const [wizardOpen, setWizardOpen] = useState(false);
 
-  const lineChartPoints = useMemo(() => {
-    const vaultIds = selectedLineVaultId === 'all' ? vaults.map((v) => v.id) : [selectedLineVaultId];
+  const { chartData, chartSeries } = useMemo<{ chartData: ChartPoint[]; chartSeries: ChartSeries[] }>(() => {
+    const bucketKeys = isAllTime ? getMonthRange(transactions) : [];
+    const [y, m] = selectedMonthYear.split('-').map(Number);
+    const bucketCount = isAllTime ? bucketKeys.length : new Date(y, m, 0).getDate();
 
-    return vaultIds
-      .map((vaultId) => {
-        const vault = vaults.find((v) => v.id === vaultId);
-        const vaultTxs = transactions.filter((t) => t.vaultId === vaultId && t.type === 'expense');
+    const bucketLabels = isAllTime ? bucketKeys.map((month) => `${MONTH_NAMES[Number(month.split('-')[1]) - 1]} ${month.slice(2, 4)}`) : Array.from({ length: bucketCount }, (_, i) => String(i + 1));
 
-        if (isAllTime) {
-          const monthRange = getMonthRange(transactions);
-          const monthly = Array(monthRange.length).fill(0);
-          vaultTxs.forEach((t) => {
-            const monthIndex = monthRange.indexOf(getMonthKey(t.date) ?? '');
-            if (monthIndex >= 0) monthly[monthIndex] += t.amount;
+    const bucketIndexOf = (date: string): number => {
+      if (isAllTime) return bucketKeys.indexOf(getMonthKey(date) ?? '');
+      const day = parseInt(date.split('-')[2], 10);
+      return day >= 1 && day <= bucketCount ? day - 1 : -1;
+    };
+
+    const selectedVaults = selectedLineVaultId === 'all' ? vaults : vaults.filter((v) => v.id === selectedLineVaultId);
+
+    const vaultBuckets = selectedVaults
+      .map((vault) => {
+        const buckets: number[] = Array(bucketCount).fill(0);
+        transactions
+          .filter((t) => t.vaultId === vault.id && t.type === 'expense')
+          .forEach((t) => {
+            const index = bucketIndexOf(t.date);
+            if (index >= 0) buckets[index] += t.amount;
           });
 
-          if (monthly.every((v) => v === 0)) return { vault, points: '' };
-
-          return { vault, points: valuesToPolyline(monthly) };
-        }
-
-        const [y, m] = selectedMonthYear.split('-').map(Number);
-        const daysInMonth = new Date(y, m, 0).getDate();
-        const daily = Array(daysInMonth).fill(0);
-        vaultTxs.forEach((t) => {
-          const day = parseInt(t.date.split('-')[2], 10);
-          if (day >= 1 && day <= daysInMonth) daily[day - 1] += t.amount;
-        });
-
-        if (daily.every((v) => v === 0)) return { vault, points: '' };
-
-        return { vault, points: valuesToPolyline(daily) };
+        return { name: vault.name, buckets, total: buckets.reduce((sum, value) => sum + value, 0) };
       })
-      .filter((d) => d.points !== '');
+      .filter((entry) => entry.total > 0)
+      .sort((a, b) => b.total - a.total);
+
+    // Hues are assigned in fixed order and never cycled — vaults past the palette
+    // size are aggregated into a single "Other" series.
+    const visible = vaultBuckets.slice(0, CHART_MAX_SERIES);
+    const overflow = vaultBuckets.slice(CHART_MAX_SERIES);
+    const grouped =
+      overflow.length > 0
+        ? [
+            ...visible,
+            {
+              name: `Other (${overflow.length})`,
+              buckets: overflow.reduce<number[]>((acc, entry) => acc.map((value, i) => value + entry.buckets[i]), Array(bucketCount).fill(0)),
+              total: overflow.reduce((sum, entry) => sum + entry.total, 0),
+            },
+          ]
+        : visible;
+
+    const series = grouped.map((entry, i) => ({ key: `s${i}`, name: entry.name }));
+    const data = bucketLabels.map((label, bucketIndex) => {
+      const point: ChartPoint = { label };
+      grouped.forEach((entry, i) => {
+        point[`s${i}`] = entry.buckets[bucketIndex];
+      });
+      return point;
+    });
+
+    return { chartData: series.length > 0 ? data : [], chartSeries: series };
   }, [transactions, vaults, selectedLineVaultId, selectedMonthYear, isAllTime]);
 
   const topDrains = useMemo(
@@ -634,26 +666,10 @@ export default function StatsPage() {
 
               {isLoading ? (
                 <div className="h-28 bg-surface-container-highest border-4 border-black animate-pulse" />
-              ) : lineChartPoints.length === 0 ? (
+              ) : chartSeries.length === 0 ? (
                 <p className="font-body-sm text-on-surface-variant py-4 text-center">No expense data for this period.</p>
               ) : (
-                <div className="flex flex-col gap-6">
-                  {lineChartPoints.map(({ vault, points }, idx) => {
-                    const STROKE_COLORS = ['text-primary', 'text-secondary', 'text-tertiary', 'text-error'];
-                    const colorClass = STROKE_COLORS[idx % STROKE_COLORS.length];
-                    return (
-                      <div key={vault?.id ?? idx} className="flex flex-col gap-1">
-                        {selectedLineVaultId === 'all' && <span className={`font-label-caps text-[10px] uppercase ${colorClass}`}>{vault?.name}</span>}
-                        <div className="h-20 w-full">
-                          <svg viewBox="0 -5 100 110" preserveAspectRatio="none" className="w-full h-full overflow-visible">
-                            <polyline fill="none" stroke="#000" strokeWidth="6" strokeLinejoin="miter" strokeLinecap="square" transform="translate(0, 4)" points={points} />
-                            <polyline fill="none" stroke="currentColor" strokeWidth="4" strokeLinejoin="miter" strokeLinecap="square" className={colorClass} points={points} />
-                          </svg>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                <VaultExpenseChart data={chartData} series={chartSeries} formatValue={formatCurrency} xAxisLabel={isAllTime ? '' : 'Day'} />
               )}
             </Card>
 

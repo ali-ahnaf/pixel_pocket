@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // The modal imports a real API client (axios-based). Mock it so the component
 // can be rendered in isolation. Tests use userId={null}, so no calls are made.
@@ -32,6 +32,26 @@ vi.mock('../lib/ai/openrouter', () => ({
   chat: vi.fn(),
 }));
 
+// AI prompt entry is opt-in: the modal only offers it when the user's
+// `aiTransactionEntryEnabled` preference is on and the preferences have loaded.
+// Mock the hook so each test can pick the preference state it exercises without
+// a real auth session / preferences request.
+const displaySettings = vi.hoisted(() => ({
+  showIncome: false,
+  showExpense: false,
+  aiTransactionEntryEnabled: false,
+  loaded: true,
+}));
+
+vi.mock('../hooks/useDisplaySettings', () => ({
+  useDisplaySettings: () => ({
+    ...displaySettings,
+    setShowIncome: vi.fn(),
+    setShowExpense: vi.fn(),
+    setAiTransactionEntryEnabled: vi.fn(),
+  }),
+}));
+
 import { LogResourceModal } from './LogResourceModal';
 
 describe('LogResourceModal', () => {
@@ -40,6 +60,12 @@ describe('LogResourceModal', () => {
     onClose: () => {},
     userId: null,
   };
+
+  beforeEach(() => {
+    // Server default: AI entry off unless the user turns it on in Settings.
+    displaySettings.aiTransactionEntryEnabled = false;
+    displaySettings.loaded = true;
+  });
 
   it('does not render anything when isOpen is false', () => {
     const { container } = render(<LogResourceModal {...baseProps} isOpen={false} />);
@@ -51,13 +77,22 @@ describe('LogResourceModal', () => {
     expect(screen.getByRole('heading', { name: /log new resource/i })).toBeInTheDocument();
   });
 
-  it('shows the AI prompt entry (Send) by default', () => {
+  it('shows the manual entry fields and no AI prompt when AI entry is disabled', () => {
+    render(<LogResourceModal {...baseProps} />);
+    expect(screen.getByPlaceholderText('e.g. Grocery run')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /send/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /manual entry/i })).not.toBeInTheDocument();
+  });
+
+  it('shows the AI prompt entry (Send) by default when AI entry is enabled', () => {
+    displaySettings.aiTransactionEntryEnabled = true;
     render(<LogResourceModal {...baseProps} />);
     expect(screen.getByRole('button', { name: /send/i })).toBeInTheDocument();
     expect(screen.queryByPlaceholderText('e.g. Grocery run')).not.toBeInTheDocument();
   });
 
   it('reveals the manual entry fields when Manual Entry is toggled', () => {
+    displaySettings.aiTransactionEntryEnabled = true;
     render(<LogResourceModal {...baseProps} />);
     fireEvent.click(screen.getByRole('button', { name: /manual entry/i }));
     expect(screen.getByPlaceholderText('e.g. Grocery run')).toBeInTheDocument();

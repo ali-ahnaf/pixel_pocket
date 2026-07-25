@@ -34,5 +34,8 @@ export { PixelDatePicker } from './PixelDatePicker';
 export { QueryParamsProvider, useQueryParams } from './QueryParamsProvider';
 export { WizardFab } from './wizard/WizardFab';
 export { WizardChatSheet } from './wizard/WizardChatSheet';
+// VaultExpenseChart is intentionally NOT re-exported here: it pulls in recharts,
+// and every page imports this barrel, which would put recharts in the shared
+// chunk (~+100 kB on every route). Import it lazily where it is used instead.
 export { PendingExpensesPanel } from './pending-expenses/PendingExpensesPanel';
 export { PendingExpenseDetailModal } from './pending-expenses/PendingExpenseDetailModal';
