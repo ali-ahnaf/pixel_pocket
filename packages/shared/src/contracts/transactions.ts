@@ -15,7 +15,6 @@ export interface CreateTransactionInput {
   title?: string | null;
   vaultId?: string | null;
   date?: string;
-  isCommitted?: boolean;
 }
 
 export interface CreateTransferInput extends CreateTransactionInput {
@@ -41,6 +40,12 @@ export interface TransactionDto {
   vaultId: string | null;
   vault: { id: string; name: string; icon: string | null } | null;
   tags: TagDto[];
+  /**
+   * @deprecated The backing `expenses.isCommitted` column was dropped: Gmail
+   * expenses now go through the `pending_gmail_expenses` review queue and are
+   * applied directly, so no transaction is ever uncommitted. Always `true`.
+   * Retained only so the UI keeps compiling; remove with the UI cleanup.
+   */
   isCommitted: boolean;
   createdAt: string;
   updatedAt: string;

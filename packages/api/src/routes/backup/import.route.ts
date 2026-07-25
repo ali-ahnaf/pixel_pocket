@@ -98,7 +98,9 @@ const importDataSchema = Joi.object<BackupPayload>({
             .allow(null)
             .required(),
           tags: Joi.array().items(tagValidateSchema).min(0).required(),
-          isCommitted: Joi.boolean().default(true),
+          // Accepted for backward compatibility with backups exported before the
+          // column was dropped; the value is discarded.
+          isCommitted: Joi.boolean().optional().strip(),
           createdAt: Joi.string().isoDate().required(),
           updatedAt: Joi.string().isoDate().required(),
           sourceRecurringId: Joi.string().uuid().allow(null).required(),
