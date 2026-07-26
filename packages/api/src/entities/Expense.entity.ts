@@ -43,6 +43,13 @@ export class Expense extends BaseEntity {
   @Column({ type: 'varchar', nullable: true })
   sourceRecurringId: string | null;
 
+  /**
+   * Idempotency key for offline-queued creates. Unique so a replayed write can
+   * never insert a duplicate row; NULL for every transaction created online.
+   */
+  @Column({ type: 'varchar', nullable: true, unique: true })
+  clientRequestId: string | null;
+
   @ManyToOne(() => User, (user) => user.expenses, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })
   user: User;

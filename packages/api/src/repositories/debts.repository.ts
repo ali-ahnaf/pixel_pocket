@@ -34,6 +34,16 @@ export class DebtsRepository {
     return this.repo.findOneBy({ userId, id });
   }
 
+  /**
+   * Look up a due by the client-generated idempotency key. Used to make a
+   * replayed offline create return the original row instead of inserting a
+   * duplicate. Soft-deleted dues count: the user may have applied or discarded
+   * the due between the first attempt and the replay.
+   */
+  findOneByClientRequestId(userId: string, clientRequestId: string): Promise<Debt | null> {
+    return this.repo.findOne({ where: { userId, clientRequestId }, withDeleted: true });
+  }
+
   createEntity(data: Partial<Debt>): Debt {
     return this.repo.create(data);
   }

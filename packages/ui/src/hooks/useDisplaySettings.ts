@@ -59,7 +59,12 @@ export const useDisplaySettings = (): UseDisplaySettingsResult => {
       .then((prefs: UserPreferenceDto) => {
         if (!cancelled) broadcast({ showIncome: prefs.showIncome, showExpense: prefs.showExpense, aiTransactionEntryEnabled: prefs.aiTransactionEntryEnabled });
       })
-      .catch(() => undefined);
+      // Offline the request never lands. Consumers that branch on `loaded` (the
+      // log-transaction modal renders no form at all until it flips) would stay
+      // blocked forever, so settle on the last known settings instead.
+      .catch(() => {
+        if (!cancelled) broadcast(currentSettings);
+      });
     return () => {
       cancelled = true;
     };

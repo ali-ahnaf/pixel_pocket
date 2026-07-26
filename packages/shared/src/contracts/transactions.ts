@@ -15,6 +15,13 @@ export interface CreateTransactionInput {
   title?: string | null;
   vaultId?: string | null;
   date?: string;
+  /**
+   * Client-generated UUID used to make the create idempotent. A write queued
+   * offline may reach the server without its response reaching the client, so
+   * the replay must not insert a second row: the server returns the existing
+   * transaction with the same `clientRequestId` instead.
+   */
+  clientRequestId?: string;
 }
 
 export interface CreateTransferInput extends CreateTransactionInput {

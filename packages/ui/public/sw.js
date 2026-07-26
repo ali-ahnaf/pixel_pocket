@@ -7,11 +7,14 @@
 //   - Static assets (icons, splash, fonts, JS/CSS): cache-first.
 // Bump CACHE_VERSION whenever you want clients to drop the old cache.
 
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const CACHE_NAME = `pocket-pixel-${CACHE_VERSION}`;
 
 // Pre-cache the app shell + core PWA assets so a cold offline launch works.
-const PRECACHE_URLS = ['/', '/manifest.json', '/logo192.png', '/logo512.png', '/pwa-assets/manifest-icon-192.maskable.png', '/pwa-assets/manifest-icon-512.maskable.png'];
+// The route shells need their trailing slash (next.config.js sets trailingSlash:
+// true); without '/debts/' a cold offline launch into that route falls back to
+// the '/' shell and renders the wrong page.
+const PRECACHE_URLS = ['/', '/debts/', '/manifest.json', '/logo192.png', '/logo512.png', '/pwa-assets/manifest-icon-192.maskable.png', '/pwa-assets/manifest-icon-512.maskable.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

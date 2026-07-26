@@ -22,6 +22,7 @@ export { AddRecurringQuestModal } from './AddRecurringQuestModal';
 export { DeleteVaultModal } from './DeleteVaultModal';
 export { DeleteQuestModal } from './DeleteQuestModal';
 export { AppBar } from './AppBar';
+export { OfflineSync } from './OfflineSync';
 export { AvatarPickerModal } from './AvatarPickerModal';
 export { BottomNavBar } from './BottomNavBar';
 export { Sidebar } from './Sidebar';

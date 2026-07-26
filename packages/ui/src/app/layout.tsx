@@ -3,6 +3,7 @@ import { Anybody, Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import AuthGuard from '@/components/AuthGuard';
 import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration';
+import OfflineSync from '@/components/OfflineSync';
 
 const anybody = Anybody({
   subsets: ['latin'],
@@ -85,6 +86,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${anybody.variable} ${inter.variable} ${jetbrainsMono.variable}`}>
       <body>
         <ServiceWorkerRegistration />
+        <OfflineSync />
         <AuthGuard>{children}</AuthGuard>
       </body>
     </html>

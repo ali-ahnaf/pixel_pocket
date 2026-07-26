@@ -14,7 +14,7 @@ jest.mock('../services', () => ({
   },
 }));
 
-type TransactionsRepositoryMock = jest.Mocked<Pick<TransactionsRepository, 'findManyForUser' | 'findOneForUser' | 'createEntity' | 'save' | 'replaceTags' | 'softDelete'>>;
+type TransactionsRepositoryMock = jest.Mocked<Pick<TransactionsRepository, 'findManyForUser' | 'findOneForUser' | 'findOneByClientRequestId' | 'createEntity' | 'save' | 'replaceTags' | 'softDelete'>>;
 
 const buildTransaction = (overrides: Partial<Expense> = {}): Expense =>
   ({
@@ -44,6 +44,7 @@ describe('TransactionsService', () => {
     transactions = {
       findManyForUser: jest.fn(),
       findOneForUser: jest.fn(),
+      findOneByClientRequestId: jest.fn(),
       createEntity: jest.fn((data) => data as Expense),
       save: jest.fn(),
       replaceTags: jest.fn(),
@@ -133,6 +134,47 @@ describe('TransactionsService', () => {
       await service.create('user-1', input);
 
       expect(transactions.replaceTags).toHaveBeenCalledWith(transaction.id, ['tag-1', 'tag-2']);
+    });
+
+    it('persists the clientRequestId of an offline-queued create', async () => {
+      const input: CreateTransactionInput = {
+        amount: 12,
+        type: 'expense',
+        clientRequestId: 'b3f1c2d4-0000-4000-8000-000000000001',
+      };
+
+      const transaction = buildTransaction();
+
+      transactions.findOneByClientRequestId.mockResolvedValue(null);
+      transactions.createEntity.mockReturnValue(transaction);
+      transactions.save.mockResolvedValue(transaction);
+
+      await service.create('user-1', input);
+
+      expect(transactions.createEntity).toHaveBeenCalledWith(expect.objectContaining({ clientRequestId: 'b3f1c2d4-0000-4000-8000-000000000001' }));
+    });
+
+    it('returns the existing transaction instead of inserting a duplicate when the clientRequestId was already used', async () => {
+      const existing = buildTransaction({ id: 'tx-existing' });
+
+      transactions.findOneByClientRequestId.mockResolvedValue(existing);
+
+      const result = await service.create('user-1', { amount: 12, clientRequestId: 'b3f1c2d4-0000-4000-8000-000000000001' });
+
+      expect(transactions.findOneByClientRequestId).toHaveBeenCalledWith('user-1', 'b3f1c2d4-0000-4000-8000-000000000001');
+      expect(transactions.createEntity).not.toHaveBeenCalled();
+      expect(transactions.save).not.toHaveBeenCalled();
+      expect(result).toBe(existing);
+    });
+
+    it('does not look up an idempotency key when the create carries none', async () => {
+      const transaction = buildTransaction();
+      transactions.createEntity.mockReturnValue(transaction);
+      transactions.save.mockResolvedValue(transaction);
+
+      await service.create('user-1', { amount: 12 });
+
+      expect(transactions.findOneByClientRequestId).not.toHaveBeenCalled();
     });
   });
   describe('update', () => {
