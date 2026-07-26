@@ -12,6 +12,8 @@ interface NavItem {
   label: string;
   href: string;
   icon: LucideIcon;
+  /** Hook for the onboarding walkthrough to spotlight this entry. */
+  tourId?: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -19,9 +21,9 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Stats', href: '/stats', icon: BarChart },
   { label: 'Profile', href: '/profile', icon: User },
   { label: 'Debts', href: '/debts', icon: Coins },
-  { label: 'Settings', href: '/settings', icon: Settings },
-  { label: 'OpenRouter AI', href: '/settings/ai', icon: Sparkles },
-  { label: 'Gmail Integration', href: '/settings/google-oauth', icon: ShieldCheck },
+  { label: 'Settings', href: '/settings', icon: Settings, tourId: 'nav-settings' },
+  { label: 'OpenRouter AI', href: '/settings/ai', icon: Sparkles, tourId: 'nav-ai' },
+  { label: 'Gmail Integration', href: '/settings/google-oauth', icon: ShieldCheck, tourId: 'nav-gmail' },
 ];
 
 interface DesktopSidebarProps {
@@ -91,13 +93,14 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ name, email, ava
         </div>
       </div>
 
-      <nav className="flex-1 flex flex-col p-4 gap-2 overflow-y-auto">
-        {NAV_ITEMS.map(({ label, href, icon: Icon }) => {
+      <nav data-tour="sidebar-nav" className="flex-1 flex flex-col p-4 gap-2 overflow-y-auto">
+        {NAV_ITEMS.map(({ label, href, icon: Icon, tourId }) => {
           const isActive = href === activeHref;
           return (
             <Link
               key={href}
               href={href}
+              data-tour={tourId}
               aria-current={isActive ? 'page' : undefined}
               className={
                 isActive

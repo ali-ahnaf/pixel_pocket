@@ -1,7 +1,8 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppBar } from './AppBar';
 import { AUTH_TOKEN_STORAGE_KEY } from '@/lib/api/ApiClient';
+import { SIDEBAR_TOUR_CLOSE_EVENT, SIDEBAR_TOUR_OPEN_EVENT } from '@/lib/sidebar-tour';
 
 const { replaceMock } = vi.hoisted(() => ({
   replaceMock: vi.fn(),
@@ -46,5 +47,20 @@ describe('AppBar', () => {
     expect(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)).toBeNull();
     expect(localStorage.getItem('pocket_pixel_profile')).toBeNull();
     expect(replaceMock).toHaveBeenCalledWith('/signin');
+  });
+
+  it('opens and closes the sidebar in response to the walkthrough events', async () => {
+    render(<AppBar />);
+
+    act(() => {
+      window.dispatchEvent(new Event(SIDEBAR_TOUR_OPEN_EVENT));
+    });
+    expect(screen.getByRole('heading', { name: /menu/i })).toBeInTheDocument();
+
+    act(() => {
+      window.dispatchEvent(new Event(SIDEBAR_TOUR_CLOSE_EVENT));
+    });
+    // The drawer unmounts after its slide-out transition.
+    await waitFor(() => expect(screen.queryByRole('heading', { name: /menu/i })).not.toBeInTheDocument());
   });
 });

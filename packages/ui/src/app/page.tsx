@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { useDisplaySettings } from '@/hooks/useDisplaySettings';
-import { Button, Card, ProgressBar, LogResourceModal, AppBar, BottomNavBar, DesktopSidebar, EditTransactionModal, AdjustBalanceModal, PendingExpensesPanel } from '@/components';
+import { useOnboarding } from '@/hooks/useOnboarding';
+import { Button, Card, ProgressBar, LogResourceModal, AppBar, BottomNavBar, DesktopSidebar, EditTransactionModal, AdjustBalanceModal, PendingExpensesPanel, OnboardingWalkthrough } from '@/components';
 import { iconMapper } from '@/lib/iconMapper';
 import { profileApi } from '@/lib/api';
 import { formatCurrency, formatDate, formatTime } from '@/lib/helpers/formatters';
@@ -134,6 +135,7 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const { showIncome, showExpense } = useDisplaySettings();
   const userId = user?.id ?? null;
+  const { isActive: isWalkthroughOpen, complete: completeWalkthrough } = useOnboarding(userId);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAdjustBalanceOpen, setIsAdjustBalanceOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -326,7 +328,10 @@ export default function DashboardPage() {
       <main className="flex-1 flex flex-col w-full md:h-screen relative px-3 md:px-0 pb-24 md:pb-0 overflow-y-auto lg:overflow-hidden overflow-x-hidden">
         <div className="w-full p-margin-mobile md:p-8 md:pb-0 md:pt-0 md:pl-1 md:pr-1 flex flex-col gap-stack-md lg:h-full lg:min-h-0">
           {/* Month Selector */}
-          <section className="flex justify-between items-center bg-surface-container border-4 border-black p-4 shadow-[inset_2px_2px_0_rgba(255,255,255,0.08),inset_-2px_-2px_0_rgba(0,0,0,0.5)]">
+          <section
+            data-tour="month-selector"
+            className="flex justify-between items-center bg-surface-container border-4 border-black p-4 shadow-[inset_2px_2px_0_rgba(255,255,255,0.08),inset_-2px_-2px_0_rgba(0,0,0,0.5)]"
+          >
             <Button onClick={handlePrevMonth} variant="ghost" className="p-2 w-10 h-10 text-primary bg-surface hover:bg-surface-container-highest">
               <ChevronLeft />
             </Button>
@@ -358,7 +363,7 @@ export default function DashboardPage() {
           {/* Dashboard Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-stack-md lg:flex-1 lg:min-h-0 lg:grid-rows-[minmax(0,1fr)_auto]">
             {/* Summary Card */}
-            <Card className="lg:col-span-1 flex flex-col gap-4 !p-4">
+            <Card data-tour="status-card" className="lg:col-span-1 flex flex-col gap-4 !p-4">
               <h3 className="font-label-caps text-outline uppercase border-b-4 border-black pb-2">Status</h3>
 
               {isLoading ? (
@@ -482,7 +487,7 @@ export default function DashboardPage() {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div data-tour="drop-filters" className="grid grid-cols-2 gap-2">
                 <div ref={vaultDropdownRef} className="relative">
                   <button
                     onClick={() => setVaultDropdownOpen((o) => !o)}
@@ -564,7 +569,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="flex flex-col gap-4 lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
+              <div data-tour="drops-list" className="flex flex-col gap-4 lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
                 {isLoading ? (
                   <div className="flex flex-col gap-3 animate-pulse">
                     {[1, 2, 3].map((i) => (
@@ -686,6 +691,8 @@ export default function DashboardPage() {
         selectedYear={selectedYear}
         vaultId={selectedVaultFilter.length === 1 ? selectedVaultFilter[0] : null}
       />
+
+      <OnboardingWalkthrough isOpen={isWalkthroughOpen} onFinish={completeWalkthrough} playerName={profile?.name} hasDrops={filteredDrops.length > 0 || filteredOccurrences.length > 0} />
 
       {toastMessage && (
         <div className="fixed bottom-24 md:bottom-8 left-1/2 -translate-x-1/2 z-[100] bg-surface-container border-4 border-black p-4 shadow-[inset_2px_2px_0_rgba(255,255,255,0.08),inset_-2px_-2px_0_rgba(0,0,0,0.5),8px_8px_0_rgba(0,0,0,0.4)] flex items-center gap-3 animate-bounce">

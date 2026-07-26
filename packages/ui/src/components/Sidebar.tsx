@@ -48,9 +48,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onLogout }) =
           </button>
         </header>
 
-        <nav className="flex-1 flex flex-col p-4 gap-2 overflow-y-auto">
+        <nav data-tour="sidebar-nav" className="flex-1 flex flex-col p-4 gap-2 overflow-y-auto">
           <Link
             href="/settings"
+            data-tour="nav-settings"
             onClick={onClose}
             className="flex items-center gap-3 p-3 text-on-surface bg-surface-container-low border-4 border-black hover:bg-primary hover:text-on-primary hover:translate-x-1 active:translate-y-0.5 transition-all"
           >
@@ -60,6 +61,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onLogout }) =
 
           <Link
             href="/settings/ai"
+            data-tour="nav-ai"
             onClick={onClose}
             className="flex items-center gap-3 p-3 text-on-surface bg-surface-container-low border-4 border-black hover:bg-primary hover:text-on-primary hover:translate-x-1 active:translate-y-0.5 transition-all"
           >
@@ -69,6 +71,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onLogout }) =
 
           <Link
             href="/settings/google-oauth"
+            data-tour="nav-gmail"
             onClick={onClose}
             className="flex items-center gap-3 p-3 text-on-surface bg-surface-container-low border-4 border-black hover:bg-primary hover:text-on-primary hover:translate-x-1 active:translate-y-0.5 transition-all"
           >
