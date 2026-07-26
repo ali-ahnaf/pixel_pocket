@@ -4,6 +4,8 @@ export interface User {
   email: string;
   avatar: string;
   disableAiPrompt?: boolean;
+  /** True once the user has finished (or skipped) the onboarding walkthrough. */
+  hasOnboarded?: boolean;
 }
 
 export interface CreateUserInput {
@@ -16,4 +18,5 @@ export interface UpdateUserInput {
   email?: string;
   avatar?: string;
   disableAiPrompt?: boolean;
+  hasOnboarded?: boolean;
 }

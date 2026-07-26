@@ -19,6 +19,7 @@ const buildUser = (overrides: Partial<User> = {}): User => ({
   avatar: 'avatar.png',
   password: 'secret',
   disableAiPrompt: false,
+  hasOnboarded: false,
   expenses: [],
   vaults: [],
   tags: [],

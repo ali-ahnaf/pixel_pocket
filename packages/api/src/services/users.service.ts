@@ -51,6 +51,7 @@ export class UsersService {
     if (input.email !== undefined) user.email = input.email;
     if (input.avatar !== undefined) user.avatar = input.avatar;
     if (input.disableAiPrompt !== undefined) user.disableAiPrompt = input.disableAiPrompt;
+    if (input.hasOnboarded !== undefined) user.hasOnboarded = input.hasOnboarded;
 
     const saved = await this.users.save(user);
     logger.info('Updated user', { userId: saved.id });

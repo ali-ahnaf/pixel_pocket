@@ -3,7 +3,6 @@ import type { User } from '../entities/User.entity';
 import type { UsersRepository } from '../repositories/users.repository';
 import { UsersService } from '../services/users.service';
 
-
 jest.mock('../services', () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
@@ -18,6 +17,7 @@ const buildUser = (overrides: Partial<User> = {}): User =>
     avatar: 'avatar.png',
     password: 'hashed-password',
     disableAiPrompt: false,
+    hasOnboarded: false,
     ...overrides,
   }) as User;
 
@@ -175,6 +175,28 @@ describe('UsersService', () => {
       await service.update('user-1', { name: 'Grace Hopper' });
 
       expect(user.disableAiPrompt).toBe(false);
+    });
+
+    it('marks the user as onboarded when provided', async () => {
+      const user = buildUser();
+
+      users.findById.mockResolvedValue(user);
+      users.save.mockImplementation(async (entity: User) => entity);
+
+      await service.update('user-1', { hasOnboarded: true });
+
+      expect(user.hasOnboarded).toBe(true);
+    });
+
+    it('does not change hasOnboarded when omitted', async () => {
+      const user = buildUser({ hasOnboarded: true });
+
+      users.findById.mockResolvedValue(user);
+      users.save.mockResolvedValue(user);
+
+      await service.update('user-1', { name: 'Grace Hopper' });
+
+      expect(user.hasOnboarded).toBe(true);
     });
   });
 });

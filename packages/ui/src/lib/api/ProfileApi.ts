@@ -1,5 +1,6 @@
 import type {
   User,
+  UpdateUserInput,
   VaultDto,
   TagDto,
   TransactionDto,
@@ -36,7 +37,7 @@ export default class ProfileApi extends ApiClient {
     return this.get<User>(`/users/${userId}`);
   }
 
-  updateUser(userId: string, data: { name?: string; email?: string; avatar?: string }): Promise<User> {
+  updateUser(userId: string, data: UpdateUserInput): Promise<User> {
     return this.put<User>(`/users/${userId}`, data);
   }
 

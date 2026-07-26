@@ -1,14 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-
-// Front-end only for now: the "has this adventurer been shown the tour?" flag lives in
-// localStorage, keyed per user so two accounts on one device each get their own walkthrough.
-// When the backend gains an `onboardingCompletedAt` user preference this hook is the single
-// place to swap the persistence for an API call.
-const ONBOARDING_STORAGE_KEY_PREFIX = 'pocket_pixel_onboarding_completed';
-
-const storageKey = (userId: string): string => `${ONBOARDING_STORAGE_KEY_PREFIX}:${userId}`;
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { profileApi } from '@/lib/api';
 
 interface UseOnboardingResult {
   readonly isActive: boolean;
@@ -16,38 +9,45 @@ interface UseOnboardingResult {
   readonly restart: () => void;
 }
 
-export function useOnboarding(userId: string | null): UseOnboardingResult {
+/**
+ * Drives the first-run walkthrough off the `hasOnboarded` flag on the user record,
+ * so the tour is shown once per account rather than once per browser.
+ *
+ * `hasOnboarded` is `undefined` while the profile is still loading; the tour only
+ * opens once it resolves to `false`. The decision is taken a single time per user
+ * so a later profile refetch (month change, transaction save) cannot reopen a tour
+ * the adventurer has already dismissed.
+ */
+export function useOnboarding(userId: string | null, hasOnboarded: boolean | undefined): UseOnboardingResult {
   const [isActive, setIsActive] = useState(false);
+  const decidedForUser = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!userId) return;
-    try {
-      if (!localStorage.getItem(storageKey(userId))) setIsActive(true);
-    } catch {
-      // Private mode / storage disabled — skip the tour rather than blocking the dashboard.
-    }
-  }, [userId]);
+    if (!userId || hasOnboarded === undefined) return;
+    if (decidedForUser.current === userId) return;
+    decidedForUser.current = userId;
+    if (!hasOnboarded) setIsActive(true);
+  }, [userId, hasOnboarded]);
+
+  const persist = useCallback(
+    (value: boolean) => {
+      if (!userId) return;
+      profileApi.updateUser(userId, { hasOnboarded: value }).catch(() => {
+        // Nothing to do: the tour simply reappears on the next load.
+      });
+    },
+    [userId],
+  );
 
   const complete = useCallback(() => {
     setIsActive(false);
-    if (!userId) return;
-    try {
-      localStorage.setItem(storageKey(userId), new Date().toISOString());
-    } catch {
-      // Nothing to do: the tour simply reappears next session.
-    }
-  }, [userId]);
+    persist(true);
+  }, [persist]);
 
   const restart = useCallback(() => {
-    if (userId) {
-      try {
-        localStorage.removeItem(storageKey(userId));
-      } catch {
-        // Ignore — restarting in-memory is enough for this session.
-      }
-    }
     setIsActive(true);
-  }, [userId]);
+    persist(false);
+  }, [persist]);
 
   return { isActive, complete, restart };
 }

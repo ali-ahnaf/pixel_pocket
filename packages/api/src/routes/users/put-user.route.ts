@@ -10,6 +10,7 @@ const updateUserSchema = Joi.object<UpdateUserInput>({
   email: Joi.string().email().max(255),
   avatar: Joi.string().max(255).allow(''),
   disableAiPrompt: Joi.boolean(),
+  hasOnboarded: Joi.boolean(),
 }).min(1);
 
 router.put(

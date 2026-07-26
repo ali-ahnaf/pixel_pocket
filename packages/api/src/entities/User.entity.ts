@@ -25,6 +25,9 @@ export class User extends BaseEntity {
   @Column({ type: 'boolean', default: false })
   disableAiPrompt: boolean;
 
+  @Column({ type: 'boolean', default: false })
+  hasOnboarded: boolean;
+
   @OneToMany(() => Expense, (expense) => expense.user)
   expenses: Expense[];
 

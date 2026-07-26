@@ -135,7 +135,6 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const { showIncome, showExpense } = useDisplaySettings();
   const userId = user?.id ?? null;
-  const { isActive: isWalkthroughOpen, complete: completeWalkthrough } = useOnboarding(userId);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAdjustBalanceOpen, setIsAdjustBalanceOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -150,6 +149,7 @@ export default function DashboardPage() {
     setIsAdjustBalanceOpen(true);
   };
   const [profile, setProfile] = useState<User | null>(null);
+  const { isActive: isWalkthroughOpen, complete: completeWalkthrough } = useOnboarding(userId, profile?.hasOnboarded);
   const [transactions, setTransactions] = useState<TransactionDto[]>([]);
   const [occurrences, setOccurrences] = useState<OccurrenceDto[]>([]);
   const [applyingOccurrence, setApplyingOccurrence] = useState<string | null>(null);
