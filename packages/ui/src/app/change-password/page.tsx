@@ -1,16 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { KeyRound, ArrowLeft } from 'lucide-react';
-import { AppBar, BottomNavBar, DesktopSidebar } from '@/components';
+import { KeyRound } from 'lucide-react';
+import { AppBar, BackButton, BottomNavBar, DesktopSidebar } from '@/components';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { useAuth } from '@/hooks/useAuth';
 import { profileApi } from '@/lib/api';
 
 export default function ChangePasswordPage() {
-  const router = useRouter();
   const { user } = useAuth();
 
   const [currentPassword, setCurrentPassword] = useState('');
@@ -68,10 +66,7 @@ export default function ChangePasswordPage() {
 
       <main className="flex-1 flex flex-col w-full md:h-screen relative px-3 md:px-0 pb-24 md:pb-0 overflow-y-auto overflow-x-hidden">
         <div className="w-full p-margin-mobile md:p-8 flex flex-col gap-stack-md">
-          <button type="button" onClick={() => router.back()} className="flex items-center gap-2 mt-2 text-on-background hover:text-primary transition-colors font-label-caps tracking-wider uppercase">
-            <ArrowLeft className="w-4 h-4" />
-            Back
-          </button>
+          <BackButton className="mt-2" />
 
           <div className="mt-2 bg-surface-container-high border-4 border-black shadow-[6px_6px_0_0_rgba(0,0,0,1)]">
             {/* Header */}

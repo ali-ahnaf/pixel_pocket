@@ -1,13 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Mail, ArrowLeft } from 'lucide-react';
+import { Mail } from 'lucide-react';
+import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
-import { useRouter } from 'next/navigation';
 
 export default function ForgotPasswordPage() {
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -75,14 +74,7 @@ export default function ForgotPasswordPage() {
               Send Reset Link
             </Button>
 
-            <button
-              type="button"
-              onClick={() => router.push('/signin')}
-              className="font-label-caps text-outline text-[11px] hover:text-primary tracking-wider uppercase flex items-center justify-center gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to Login
-            </button>
+            <BackButton href="/signin" label="Back to Login" variant="subtle" />
           </form>
         </div>
       </div>

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Sparkles, CheckCircle2, ShieldAlert, KeyRound } from 'lucide-react';
+import { Sparkles, CheckCircle2, ShieldAlert, KeyRound } from 'lucide-react';
 import type { AiCredentialStatusDto, SetAiCredentialInput } from '@expense-tracker/shared';
 import { AppBar, BottomNavBar, DesktopSidebar } from '@/components';
 import { Button } from '@/components/Button';
