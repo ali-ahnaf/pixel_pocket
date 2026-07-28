@@ -103,7 +103,7 @@ describe('UserOAuthCredentialService', () => {
 
       const result = await service.getStatus('user-1');
 
-      expect(result).toEqual({ configured: true, connected: false, googleEmail: undefined });
+      expect(result).toEqual({ configured: true, connected: false, googleEmail: undefined, reconnectRequired: false });
     });
 
     it('reports connected: true with the email once tokens are stored', async () => {
@@ -111,7 +111,15 @@ describe('UserOAuthCredentialService', () => {
 
       const result = await service.getStatus('user-1');
 
-      expect(result).toEqual({ configured: true, connected: true, googleEmail: 'me@example.com' });
+      expect(result).toEqual({ configured: true, connected: true, googleEmail: 'me@example.com', reconnectRequired: false });
+    });
+
+    it('reports reconnectRequired: true when the email survived but the refresh token was dropped', async () => {
+      credentials.findByUserId.mockResolvedValue(buildCredential({ googleRefreshTokenEncrypted: null, googleEmail: 'me@example.com' }));
+
+      const result = await service.getStatus('user-1');
+
+      expect(result).toEqual({ configured: true, connected: false, googleEmail: 'me@example.com', reconnectRequired: true });
     });
 
     it('returns configured: false when no row exists', async () => {
@@ -119,7 +127,7 @@ describe('UserOAuthCredentialService', () => {
 
       const result = await service.getStatus('user-1');
 
-      expect(result).toEqual({ configured: false, connected: false });
+      expect(result).toEqual({ configured: false, connected: false, reconnectRequired: false });
     });
   });
 
@@ -193,6 +201,39 @@ describe('UserOAuthCredentialService', () => {
       credentials.findByUserId.mockResolvedValue(buildCredential());
 
       await expect(service.refreshAccessToken('user-1')).rejects.toThrow('Gmail not connected');
+    });
+
+    it('drops the dead tokens and throws 401 when Google answers invalid_grant', async () => {
+      const existing = buildCredential({
+        googleAccessTokenEncrypted: 'encrypted(old-access)',
+        googleRefreshTokenEncrypted: 'encrypted(refresh-1)',
+        googleTokenExpiry: new Date(),
+        googleEmail: 'me@example.com',
+      });
+      credentials.findByUserId.mockResolvedValue(existing);
+      fetchMock.mockResolvedValue(jsonResponse(400, { error: 'invalid_grant', error_description: 'Token has been expired or revoked.' }));
+
+      await expect(service.refreshAccessToken('user-1')).rejects.toMatchObject({ statusCode: 401, message: 'Gmail connection expired, please reconnect' });
+
+      expect(existing.googleAccessTokenEncrypted).toBeNull();
+      expect(existing.googleRefreshTokenEncrypted).toBeNull();
+      expect(existing.googleTokenExpiry).toBeNull();
+      // Kept so getStatus can report reconnectRequired and the user need not re-enter the client.
+      expect(existing.googleEmail).toBe('me@example.com');
+      expect(existing.googleClientIdEncrypted).toBe('encrypted(old-id)');
+      expect(credentials.save).toHaveBeenCalledWith(existing);
+    });
+
+    it('rethrows a non-invalid_grant failure and keeps the stored tokens', async () => {
+      const existing = buildCredential({ googleAccessTokenEncrypted: 'encrypted(old-access)', googleRefreshTokenEncrypted: 'encrypted(refresh-1)' });
+      credentials.findByUserId.mockResolvedValue(existing);
+      fetchMock.mockResolvedValue(jsonResponse(500, { error: 'internal_failure' }));
+
+      await expect(service.refreshAccessToken('user-1')).rejects.toMatchObject({ statusCode: 502 });
+
+      expect(existing.googleAccessTokenEncrypted).toBe('encrypted(old-access)');
+      expect(existing.googleRefreshTokenEncrypted).toBe('encrypted(refresh-1)');
+      expect(credentials.save).not.toHaveBeenCalled();
     });
   });
 

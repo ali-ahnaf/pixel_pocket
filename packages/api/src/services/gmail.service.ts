@@ -204,7 +204,14 @@ export class GmailService {
       credential.gmailHistoryId = notification.historyId;
       await this.credentials.save(credential);
     } catch (err) {
-      logger.error('Gmail push processing failed', { userId: credential.userId, err });
+      // An expired Gmail connection is expected and user-fixable (the home page
+      // banner asks for a reconnect), so it must not fill the log with ERROR on
+      // every push until then.
+      if (err instanceof AppError && err.statusCode === 401) {
+        logger.warn('Gmail push skipped, connection expired', { userId: credential.userId });
+      } else {
+        logger.error('Gmail push processing failed', { userId: credential.userId, err });
+      }
       // Swallowed on purpose: a non-2xx would trigger a Pub/Sub retry storm; the
       // next push re-diffs from the un-advanced baseline and the ledger dedupes.
     }

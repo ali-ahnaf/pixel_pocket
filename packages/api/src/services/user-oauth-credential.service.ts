@@ -4,7 +4,7 @@ import { UserOAuthCredentialRepository } from '../repositories/user-oauth-creden
 import { userOAuthCredentialRepository } from '../repositories';
 import { AppError } from '../errors/app-error';
 import { decrypt, encrypt } from '../utils/oauth-credentials-encryption.util';
-import { buildAuthorizeUrl, exchangeCodeForTokens, extractEmailFromIdToken, refreshTokens, signOAuthState, verifyOAuthState } from '../utils/google-oauth.util';
+import { buildAuthorizeUrl, exchangeCodeForTokens, extractEmailFromIdToken, refreshTokens, signOAuthState, verifyOAuthState, type GoogleTokenResult } from '../utils/google-oauth.util';
 import { logger } from '.';
 
 export type { SetOAuthCredentialsInput };
@@ -43,11 +43,14 @@ export class UserOAuthCredentialService {
 
   async getStatus(userId: string): Promise<OAuthCredentialsStatusDto> {
     const existing = await this.credentials.findByUserId(userId);
-    if (!existing) return { configured: false, connected: false };
+    if (!existing) return { configured: false, connected: false, reconnectRequired: false };
     return {
       configured: true,
       connected: existing.googleRefreshTokenEncrypted !== null,
       googleEmail: existing.googleEmail ?? undefined,
+      // A kept email with no refresh token only happens when `refreshAccessToken`
+      // dropped an expired/revoked token — `disconnectGmail` nulls both.
+      reconnectRequired: existing.googleEmail !== null && existing.googleRefreshTokenEncrypted === null,
     };
   }
 
@@ -100,7 +103,24 @@ export class UserOAuthCredentialService {
     const clientSecret = decrypt(existing.googleClientSecretEncrypted);
     const refreshToken = decrypt(existing.googleRefreshTokenEncrypted);
 
-    const tokens = await refreshTokens({ clientId, clientSecret, refreshToken });
+    let tokens: GoogleTokenResult;
+    try {
+      tokens = await refreshTokens({ clientId, clientSecret, refreshToken });
+    } catch (err) {
+      // Google answers invalid_grant when the refresh token is expired or revoked. It will
+      // never succeed again, so drop it — keeping it makes every later push retry a dead
+      // token. googleEmail and the client id/secret stay so getStatus can tell "expired"
+      // apart from "never connected" and the user can re-consent without re-entering them.
+      if (!(err instanceof AppError) || err.code !== 'invalid_grant') throw err;
+
+      existing.googleAccessTokenEncrypted = null;
+      existing.googleRefreshTokenEncrypted = null;
+      existing.googleTokenExpiry = null;
+      await this.credentials.save(existing);
+
+      logger.warn('Google refresh token expired or revoked, reconnect required', { userId });
+      throw new AppError('Gmail connection expired, please reconnect', 401);
+    }
 
     existing.googleAccessTokenEncrypted = encrypt(tokens.accessToken);
     if (tokens.refreshToken) existing.googleRefreshTokenEncrypted = encrypt(tokens.refreshToken);

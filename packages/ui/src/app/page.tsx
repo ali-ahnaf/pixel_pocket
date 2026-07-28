@@ -5,7 +5,20 @@ import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { useDisplaySettings } from '@/hooks/useDisplaySettings';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { Button, Card, ProgressBar, LogResourceModal, AppBar, BottomNavBar, DesktopSidebar, EditTransactionModal, AdjustBalanceModal, PendingExpensesPanel, OnboardingWalkthrough } from '@/components';
+import {
+  Button,
+  Card,
+  ProgressBar,
+  LogResourceModal,
+  AppBar,
+  BottomNavBar,
+  DesktopSidebar,
+  EditTransactionModal,
+  AdjustBalanceModal,
+  GmailReconnectBanner,
+  PendingExpensesPanel,
+  OnboardingWalkthrough,
+} from '@/components';
 import { iconMapper } from '@/lib/iconMapper';
 import { profileApi } from '@/lib/api';
 import { formatCurrency, formatDate, formatTime } from '@/lib/helpers/formatters';
@@ -357,6 +370,8 @@ export default function DashboardPage() {
               <ChevronRight />
             </Button>
           </section>
+
+          <GmailReconnectBanner userId={userId} />
 
           <PendingExpensesPanel userId={userId} />
 

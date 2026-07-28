@@ -7,10 +7,18 @@
 export class AppError extends Error {
   readonly statusCode: number;
 
-  constructor(message: string, statusCode = 400) {
+  /**
+   * Optional machine-readable cause, used when the failure comes from an upstream
+   * API that returns its own error identifier (e.g. Google's `invalid_grant`), so
+   * callers can branch on it instead of string-matching `message`.
+   */
+  readonly code?: string;
+
+  constructor(message: string, statusCode = 400, code?: string) {
     super(message);
     this.name = 'AppError';
     this.statusCode = statusCode;
+    this.code = code;
     Object.setPrototypeOf(this, AppError.prototype);
   }
 }

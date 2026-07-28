@@ -1,4 +1,5 @@
 {
+  "enabledMcpjsonServers": ["pocket-pixel-sqlite"],
   "permissions": {
     "allow": [
       "Bash(git *)",

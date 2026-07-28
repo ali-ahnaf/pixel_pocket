@@ -97,7 +97,7 @@ const postToken = async (body: Record<string, string>): Promise<GoogleTokenResul
   const data = (await response.json().catch(() => ({}))) as GoogleTokenResponse;
   if (!response.ok || !data.access_token) {
     const reason = data.error_description || data.error || `HTTP ${response.status}`;
-    throw new AppError(`Google token request failed: ${reason}`, 502);
+    throw new AppError(`Google token request failed: ${reason}`, 502, data.error);
   }
 
   return {

@@ -13,6 +13,11 @@ export interface OAuthCredentialsStatusDto {
   configured: boolean;
   connected: boolean;
   googleEmail?: string;
+  /**
+   * True once a stored refresh token was rejected as expired/revoked: the client
+   * id and secret are still valid, but the user must re-run the consent flow.
+   */
+  reconnectRequired: boolean;
 }
 
 /**
