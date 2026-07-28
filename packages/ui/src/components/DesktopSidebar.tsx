@@ -2,13 +2,13 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Home, BarChart, User, Coins, LogOut, Settings, Sparkles, ShieldCheck, type LucideIcon } from 'lucide-react';
+import { Home, BarChart, User, Coins, LogOut, Settings, Sparkles, ShieldCheck, LayoutGrid, Table2, ChevronDown, ChevronRight, type LucideIcon } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 
 const PROFILE_STORAGE_KEY = 'pocket_pixel_profile';
 
-interface NavItem {
+interface NavLink {
   label: string;
   href: string;
   icon: LucideIcon;
@@ -16,15 +16,30 @@ interface NavItem {
   tourId?: string;
 }
 
-const NAV_ITEMS: NavItem[] = [
+interface NavGroup {
+  label: string;
+  icon: LucideIcon;
+  /** Every child href shares this prefix, so the group can auto-expand on the active route. */
+  prefix: string;
+  children: NavLink[];
+}
+
+type NavEntry = NavLink | NavGroup;
+
+const isGroup = (entry: NavEntry): entry is NavGroup => 'children' in entry;
+
+const NAV_ITEMS: NavEntry[] = [
   { label: 'Home', href: '/', icon: Home },
   { label: 'Stats', href: '/stats', icon: BarChart },
+  { label: 'Views', icon: LayoutGrid, prefix: '/views', children: [{ label: 'Tabular', href: '/views/table', icon: Table2 }] },
   { label: 'Profile', href: '/profile', icon: User },
   { label: 'Debts', href: '/debts', icon: Coins },
   { label: 'Settings', href: '/settings', icon: Settings, tourId: 'nav-settings' },
   { label: 'OpenRouter AI', href: '/settings/ai', icon: Sparkles, tourId: 'nav-ai' },
   { label: 'Gmail Integration', href: '/settings/google-oauth', icon: ShieldCheck, tourId: 'nav-gmail' },
 ];
+
+const ALL_HREFS = NAV_ITEMS.flatMap((entry) => (isGroup(entry) ? entry.children.map((child) => child.href) : [entry.href]));
 
 interface DesktopSidebarProps {
   name?: string;
@@ -63,9 +78,17 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ name, email, ava
 
   // Nested routes (/settings/ai) also prefix-match their parent (/settings), so
   // only the longest matching href is highlighted.
-  const activeHref = NAV_ITEMS.map(({ href }) => href)
-    .filter((href) => (href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`)))
-    .sort((a, b) => b.length - a.length)[0];
+  const activeHref = ALL_HREFS.filter((href) => (href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`))).sort((a, b) => b.length - a.length)[0];
+
+  const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
+
+  // Groups stay collapsed by default, but open themselves when the route they own is active.
+  useEffect(() => {
+    const activeGroup = NAV_ITEMS.find((entry): entry is NavGroup => isGroup(entry) && (pathname === entry.prefix || pathname.startsWith(`${entry.prefix}/`)));
+    if (activeGroup) setExpandedGroups((groups) => (groups.includes(activeGroup.label) ? groups : [...groups, activeGroup.label]));
+  }, [pathname]);
+
+  const toggleGroup = (label: string) => setExpandedGroups((groups) => (groups.includes(label) ? groups.filter((g) => g !== label) : [...groups, label]));
 
   const handleLogout = () => {
     signOut();
@@ -94,13 +117,63 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ name, email, ava
       </div>
 
       <nav data-tour="sidebar-nav" className="flex-1 flex flex-col p-4 gap-2 overflow-y-auto">
-        {NAV_ITEMS.map(({ label, href, icon: Icon, tourId }) => {
-          const isActive = href === activeHref;
+        {NAV_ITEMS.map((entry) => {
+          const Icon = entry.icon;
+
+          if (isGroup(entry)) {
+            const isExpanded = expandedGroups.includes(entry.label);
+            const hasActiveChild = entry.children.some((child) => child.href === activeHref);
+            return (
+              <div key={entry.label} className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(entry.label)}
+                  aria-expanded={isExpanded}
+                  className={`flex items-center gap-3 p-3 text-left transition-transform border-4 ${
+                    hasActiveChild
+                      ? 'border-black bg-surface-container-highest text-on-surface'
+                      : 'border-transparent text-on-surface hover:bg-surface-container-highest hover:translate-x-1 hover:border-black'
+                  }`}
+                >
+                  <Icon />
+                  <span className="flex-1 font-label-caps text-sm tracking-wider uppercase font-bold">{entry.label}</span>
+                  {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                </button>
+
+                {isExpanded && (
+                  <div className="flex flex-col gap-2 pl-6">
+                    {entry.children.map((child) => {
+                      const ChildIcon = child.icon;
+                      const isActive = child.href === activeHref;
+                      return (
+                        <Link
+                          key={child.href}
+                          href={child.href}
+                          data-tour={child.tourId}
+                          aria-current={isActive ? 'page' : undefined}
+                          className={
+                            isActive
+                              ? 'flex items-center gap-3 p-3 bg-primary text-on-primary border-4 border-primary-container'
+                              : 'flex items-center gap-3 p-3 text-on-surface hover:bg-surface-container-highest hover:translate-x-1 active:scale-95 transition-transform border-4 border-transparent hover:border-black'
+                          }
+                        >
+                          <ChildIcon className="w-5 h-5" />
+                          <span className={`font-label-caps text-sm tracking-wider uppercase ${isActive ? 'font-black' : 'font-bold'}`}>{child.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          const isActive = entry.href === activeHref;
           return (
             <Link
-              key={href}
-              href={href}
-              data-tour={tourId}
+              key={entry.href}
+              href={entry.href}
+              data-tour={entry.tourId}
               aria-current={isActive ? 'page' : undefined}
               className={
                 isActive
@@ -109,7 +182,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ name, email, ava
               }
             >
               <Icon />
-              <span className={`font-label-caps text-sm tracking-wider uppercase ${isActive ? 'font-black' : 'font-bold'}`}>{label}</span>
+              <span className={`font-label-caps text-sm tracking-wider uppercase ${isActive ? 'font-black' : 'font-bold'}`}>{entry.label}</span>
             </Link>
           );
         })}

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { X, Coins, LogOut, Settings, Sparkles, ShieldCheck } from 'lucide-react';
+import { X, LogOut, Settings, Sparkles, ShieldCheck, LayoutGrid, Table2, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -13,6 +13,7 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onLogout }) => {
   const [shouldRender, setShouldRender] = useState(isOpen);
   const [isVisible, setIsVisible] = useState(false);
+  const [viewsExpanded, setViewsExpanded] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -49,6 +50,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onLogout }) =
         </header>
 
         <nav data-tour="sidebar-nav" className="flex-1 flex flex-col p-4 gap-2 overflow-y-auto">
+          <button
+            type="button"
+            onClick={() => setViewsExpanded((expanded) => !expanded)}
+            aria-expanded={viewsExpanded}
+            className="flex items-center gap-3 p-3 text-on-surface bg-surface-container-low border-4 border-black hover:bg-primary hover:text-on-primary active:translate-y-0.5 transition-all"
+          >
+            <LayoutGrid className="w-5 h-5" />
+            <span className="flex-1 text-left font-label-caps tracking-wider uppercase">Views</span>
+            {viewsExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          </button>
+
+          {viewsExpanded && (
+            <Link
+              href="/views/table"
+              onClick={onClose}
+              className="flex items-center gap-3 p-3 ml-6 text-on-surface bg-surface-container-low border-4 border-black hover:bg-primary hover:text-on-primary hover:translate-x-1 active:translate-y-0.5 transition-all"
+            >
+              <Table2 className="w-5 h-5" />
+              <span className="font-label-caps tracking-wider uppercase">Tabular</span>
+            </Link>
+          )}
+
           <Link
             href="/settings"
             data-tour="nav-settings"

@@ -42,6 +42,30 @@ describe('Sidebar', () => {
     expect(document.querySelector('a[href="/settings/google-oauth"]')).toHaveTextContent('Gmail Integration');
   });
 
+  it('renders the Views group collapsed, expanding to the Tabular link on click', async () => {
+    render(<Sidebar isOpen={true} onClose={onClose} onLogout={onLogout} />);
+    await screen.findByText('Menu');
+
+    const viewsToggle = screen.getByRole('button', { name: /views/i });
+    expect(viewsToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Tabular')).not.toBeInTheDocument();
+
+    fireEvent.click(viewsToggle);
+
+    expect(viewsToggle).toHaveAttribute('aria-expanded', 'true');
+    expect(document.querySelector('a[href="/views/table"]')).toHaveTextContent('Tabular');
+  });
+
+  it('calls onClose when the Tabular link is clicked', async () => {
+    render(<Sidebar isOpen={true} onClose={onClose} onLogout={onLogout} />);
+    await screen.findByText('Menu');
+
+    fireEvent.click(screen.getByRole('button', { name: /views/i }));
+    fireEvent.click(document.querySelector('a[href="/views/table"]') as Element);
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('calls onClose when the close (X) button is clicked', async () => {
     render(<Sidebar isOpen={true} onClose={onClose} onLogout={onLogout} />);
     await screen.findByText('Menu');
