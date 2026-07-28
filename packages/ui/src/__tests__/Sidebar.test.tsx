@@ -19,6 +19,10 @@ vi.mock('lucide-react', () => ({
   Sparkles: () => React.createElement('span', null, 'Sparkles'),
   ShieldCheck: () => React.createElement('span', null, 'ShieldCheck'),
   LogOut: () => React.createElement('span', null, 'LogOut'),
+  LayoutGrid: () => React.createElement('span', null, 'LayoutGrid'),
+  Table2: () => React.createElement('span', null, 'Table2'),
+  ChevronDown: () => React.createElement('span', null, 'ChevronDown'),
+  ChevronRight: () => React.createElement('span', null, 'ChevronRight'),
 }));
 
 describe('Sidebar Component', () => {

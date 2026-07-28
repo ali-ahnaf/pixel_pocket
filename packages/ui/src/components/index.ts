@@ -34,6 +34,8 @@ export { ApplyDebtModal } from './ApplyDebtModal';
 export { EditTransactionModal } from './EditTransactionModal';
 export { AdjustBalanceModal } from './AdjustBalanceModal';
 export { PixelDatePicker } from './PixelDatePicker';
+export { YearlyTagTable } from './YearlyTagTable';
+export type { YearlyTagTableProps } from './YearlyTagTable';
 export { QueryParamsProvider, useQueryParams } from './QueryParamsProvider';
 export { WizardFab } from './wizard/WizardFab';
 export { WizardChatSheet } from './wizard/WizardChatSheet';
