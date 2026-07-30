@@ -6,17 +6,48 @@ Deploy is fully automated on **push to `main`** via `.github/workflows/ci-cd.yml
 
 ## Required GitHub secrets
 
-| Secret                  | Meaning                                                                                                |
-| ----------------------- | ------------------------------------------------------------------------------------------------------ |
-| `HOSTINGER_VPS_HOST`    | VPS IP/hostname                                                                                        |
-| `HOSTINGER_VPS_PORT`    | SSH port (defaults to 22 if unset)                                                                     |
-| `HOSTINGER_VPS_USER`    | SSH user                                                                                               |
-| `HOSTINGER_VPS_APP_DIR` | App dir on VPS, e.g. `/var/www/pocket_pixel`                                                           |
-| `HOSTINGER_VPS_SSH_KEY` | Private SSH key (deploy job strips `\r`)                                                               |
-| `API_ENV`               | **Entire content** of the API `.env` — written verbatim to `packages/api/.env` on the VPS every deploy |
+| Secret                  | Meaning                                                                                                                                                              |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `HOSTINGER_VPS_HOST`    | VPS IP/hostname                                                                                                                                                      |
+| `HOSTINGER_VPS_PORT`    | SSH port (defaults to 22 if unset)                                                                                                                                   |
+| `HOSTINGER_VPS_USER`    | SSH user                                                                                                                                                             |
+| `HOSTINGER_VPS_APP_DIR` | App dir on VPS, e.g. `/var/www/pocket_pixel`                                                                                                                         |
+| `HOSTINGER_VPS_SSH_KEY` | Private SSH key (deploy job strips `\r`)                                                                                                                             |
+| `API_ENV`               | **Entire content** of the API `.env` — written verbatim to `packages/api/.env` on the VPS every deploy                                                               |
 | `VAPID_PUBLIC_KEY`      | Web Push VAPID public key — inlined into the UI build as `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (see the `Build UI` step). Not secret, but must match the API's private key. |
 
 Adding a new env var to the API means updating the `API_ENV` secret too, or prod silently runs without it.
+
+### Setting the secrets with the `gh` CLI
+
+Requires `gh` authenticated with `repo` scope (`gh auth login`, verify with `gh auth status`). All commands below assume you are inside the repo clone so `gh` resolves `ali-ahnaf/pixel_pocket` from the git remote; otherwise add `--repo ali-ahnaf/pixel_pocket`. `gh secret set` creates or overwrites — there is no separate update command, and existing values can never be read back, only replaced.
+
+Single-line values — pass them on stdin rather than as an argument so they never land in your shell history:
+
+```bash
+printf '%s' '203.0.113.10'          | gh secret set HOSTINGER_VPS_HOST
+printf '%s' '22'                    | gh secret set HOSTINGER_VPS_PORT
+printf '%s' 'deploy'                | gh secret set HOSTINGER_VPS_USER
+printf '%s' '/var/www/pocket_pixel' | gh secret set HOSTINGER_VPS_APP_DIR
+printf '%s' 'BB...public-key...'    | gh secret set VAPID_PUBLIC_KEY
+```
+
+Multi-line values — read them from a file with `--body-file` (`-f`), which preserves newlines exactly:
+
+```bash
+gh secret set HOSTINGER_VPS_SSH_KEY --body-file ~/.ssh/pocket_pixel_deploy   # the PRIVATE key, no .pub
+gh secret set API_ENV               --body-file packages/api/.env
+```
+
+Notes:
+
+- `HOSTINGER_VPS_SSH_KEY` is the full private key including the `-----BEGIN ...-----` / `-----END ...-----` lines and the trailing newline. The deploy job strips `\r`, so a CRLF file still works, but don't hand-retype it.
+- `API_ENV` is the whole `.env` file, not one variable. Re-run the `--body-file` command after adding any new API env var; the local `packages/api/.env` may contain dev-only values, so keep a prod copy (e.g. `~/pocket_pixel/prod.env`) and set the secret from that instead of from the working tree.
+- Verify names and update timestamps (values are never shown): `gh secret list`.
+- Remove one with `gh secret delete <NAME>`.
+- These are repo-level Actions secrets, which is what `ci-cd.yml` reads. Don't pass `--env`/`--org` unless you also rewire the workflow to an environment.
+
+After changing a secret, the next push to `main` picks it up — editing only `.md`/`.yml` files does not trigger a run, so re-run the last workflow manually if you need a deploy without a code change: `gh workflow run ci-cd.yml --ref main`.
 
 ### Web Push (VAPID)
 
