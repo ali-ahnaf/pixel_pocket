@@ -10,6 +10,7 @@ import { PendingExpenseDetailModal } from './PendingExpenseDetailModal';
 
 interface PendingExpensesPanelProps {
   userId: string | null;
+  onTransactionCreated?: () => void;
 }
 
 /**
@@ -19,7 +20,7 @@ interface PendingExpensesPanelProps {
  * click). Clicking an item opens the parse/dismiss flow. See
  * documentation/openrouter-ai-migration.md (T12).
  */
-export function PendingExpensesPanel({ userId }: PendingExpensesPanelProps): JSX.Element | null {
+export function PendingExpensesPanel({ userId, onTransactionCreated }: PendingExpensesPanelProps): JSX.Element | null {
   const [items, setItems] = useState<PendingGmailExpenseDto[]>([]);
   const [tags, setTags] = useState<TagDto[]>([]);
   const [selected, setSelected] = useState<PendingGmailExpenseDto | null>(null);
@@ -39,9 +40,10 @@ export function PendingExpensesPanel({ userId }: PendingExpensesPanelProps): JSX
     fetchPending();
   }, [fetchPending]);
 
-  const handleResolved = (id: string): void => {
+  const handleResolved = (id: string, transactionCreated: boolean): void => {
     setItems((prev) => prev.filter((item) => item.id !== id));
     setSelected(null);
+    if (transactionCreated) onTransactionCreated?.();
   };
 
   if (!userId || (items.length === 0 && !error)) return null;
