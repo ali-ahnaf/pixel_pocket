@@ -4,6 +4,7 @@ import { Expense } from './Expense.entity';
 import { Vault } from './Vault.entity';
 import { Tag } from './Tag.entity';
 import { BaseEntity } from './BaseEntity';
+import {Adventure} from './AdventureEntity';
 
 @Entity('users')
 export class User extends BaseEntity {
@@ -36,4 +37,8 @@ export class User extends BaseEntity {
 
   @OneToMany(() => Tag, (t) => t.user)
   tags: Tag[];
+
+  @OneToMany(() => Adventure, (a) => a.user)
+  adventures: Adventure[];
+
 }

@@ -6,7 +6,6 @@ import { useAuth } from './useAuth';
 
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '';
 
-/** Converts a base64url VAPID public key into the Uint8Array PushManager.subscribe expects. */
 function urlBase64ToUint8Array(base64Url: string): Uint8Array {
   const padding = '='.repeat((4 - (base64Url.length % 4)) % 4);
   const base64 = (base64Url + padding).replace(/-/g, '+').replace(/_/g, '/');
