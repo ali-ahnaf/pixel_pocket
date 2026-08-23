@@ -373,7 +373,7 @@ export default function DashboardPage() {
 
           <GmailReconnectBanner userId={userId} />
 
-          <PendingExpensesPanel userId={userId} />
+          <PendingExpensesPanel userId={userId} onTransactionCreated={handleTransactionSuccess} />
 
           {/* Dashboard Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-stack-md lg:flex-1 lg:min-h-0 lg:grid-rows-[minmax(0,1fr)_auto]">

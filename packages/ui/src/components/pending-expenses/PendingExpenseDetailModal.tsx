@@ -16,8 +16,7 @@ interface PendingExpenseDetailModalProps {
   userId: string;
   item: PendingGmailExpenseDto | null;
   tags: TagDto[];
-  /** Called after the item is resolved (transaction created, or dismissed) so the parent can drop it from the list. */
-  onResolved: (id: string) => void;
+  onResolved: (id: string, transactionCreated: boolean) => void;
 }
 
 /**
@@ -112,7 +111,7 @@ export function PendingExpenseDetailModal({ isOpen, onClose, userId, item, tags,
         date: parsed.date,
       });
       await profileApi.deletePendingExpense(userId, item.id);
-      onResolved(item.id);
+      onResolved(item.id, true);
     } catch (err) {
       setParseError(err instanceof Error ? err.message : profileApi.parseError(err));
     } finally {
@@ -126,7 +125,7 @@ export function PendingExpenseDetailModal({ isOpen, onClose, userId, item, tags,
     setParseError(null);
     try {
       await profileApi.deletePendingExpense(userId, item.id);
-      onResolved(item.id);
+      onResolved(item.id, false);
     } catch (err) {
       setParseError(profileApi.parseError(err));
     } finally {
