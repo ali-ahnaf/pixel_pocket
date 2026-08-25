@@ -15,6 +15,8 @@ const createDebtSchema = Joi.object<CreateDebtInput>({
     .pattern(/^\d{4}-\d{2}-\d{2}$/)
     .allow(null)
     .optional(),
+  // Idempotency key sent by writes that were queued while the client was offline.
+  clientRequestId: Joi.string().uuid().optional(),
 });
 
 router.post(

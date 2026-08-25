@@ -44,13 +44,24 @@ export class TransactionsService {
   }
 
   async create(userId: string, input: CreateTransactionInput): Promise<Expense> {
-    const { tagIds = [], date, ...rest } = input;
+    const { tagIds = [], date, clientRequestId, ...rest } = input;
     const transactionDate = date ?? new Date().toISOString().split('T')[0];
+
+    // A create queued while the client was offline may already have reached the
+    // server on its first attempt; return that row rather than inserting a twin.
+    if (clientRequestId) {
+      const existing = await this.transactions.findOneByClientRequestId(userId, clientRequestId);
+      if (existing) {
+        logger.info('Returned existing transaction for replayed clientRequestId', { userId, transactionId: existing.id });
+        return existing;
+      }
+    }
 
     const transaction = this.transactions.createEntity({
       ...rest,
       userId,
       date: transactionDate,
+      clientRequestId: clientRequestId ?? null,
     });
 
     const saved = await this.transactions.save(transaction);

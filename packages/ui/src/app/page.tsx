@@ -21,6 +21,8 @@ import {
 } from '@/components';
 import { iconMapper } from '@/lib/iconMapper';
 import { profileApi } from '@/lib/api';
+import { isOfflineId, pendingTransactions } from '@/lib/offline/outbox';
+import { OFFLINE_SYNCED_EVENT } from '@/lib/offline/sync-events';
 import { formatCurrency, formatDate, formatTime } from '@/lib/helpers/formatters';
 import type { User, VaultDto, TagDto, TransactionDto, OccurrenceDto } from '@expense-tracker/shared';
 import { Package, ChevronLeft, ChevronRight, ChevronDown, Plus, X, Check, Repeat, Eye, EyeOff, ArrowUpDown, Search } from 'lucide-react';
@@ -200,7 +202,13 @@ export default function DashboardPage() {
     ])
       .then(([user, txs, vaultList, occs, tagList]) => {
         setProfile(user);
-        setTransactions(txs);
+        // Transactions still waiting in the outbox are not on the server yet, so
+        // merge the ones dated in the month being viewed on top of the fetched list.
+        const queued = pendingTransactions(userId).filter((tx) => {
+          const [year, month] = tx.date.split('-');
+          return Number(year) === selectedYear && Number(month) === selectedMonth + 1;
+        });
+        setTransactions([...queued, ...txs]);
         setVaults(vaultList);
         if (!didInitVaultFilter.current) {
           didInitVaultFilter.current = true;
@@ -215,6 +223,14 @@ export default function DashboardPage() {
   }, [userId, selectedMonth, selectedYear, refetchKey]);
 
   const handleTransactionSuccess = useCallback(() => setRefetchKey((k) => k + 1), []);
+
+  // Once the outbox drains, the queued transactions exist server-side — refetch
+  // so the placeholder rows are replaced by real ones (with tags and vault).
+  useEffect(() => {
+    const onSynced = () => setRefetchKey((k) => k + 1);
+    window.addEventListener(OFFLINE_SYNCED_EVENT, onSynced);
+    return () => window.removeEventListener(OFFLINE_SYNCED_EVENT, onSynced);
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -609,13 +625,15 @@ export default function DashboardPage() {
                     {filteredDrops.map((tx) => {
                       const TxIcon = iconMapper(getTransactionIconName(tx));
                       const tagBg = tx.tags?.[0]?.backgroundColor;
+                      // A drop that only exists in the outbox has no server id yet, so it cannot be edited until it syncs.
+                      const isQueued = isOfflineId(tx.id);
                       return (
                         <div
                           key={tx.id}
                           className={`flex items-center gap-4 p-3 border-4 transition-colors cursor-pointer shadow-[inset_2px_2px_0_rgba(255,255,255,0.08),inset_-2px_-2px_0_rgba(0,0,0,0.5)] ${
                             tx.isCommitted ? 'bg-surface border-black hover:bg-surface-container-highest' : 'bg-secondary-container/20 border-dashed border-secondary hover:bg-secondary-container/30'
                           }`}
-                          onClick={() => setEditingTransaction(tx)}
+                          onClick={() => !isQueued && setEditingTransaction(tx)}
                         >
                           <div
                             className={`h-10 w-10 flex items-center justify-center shrink-0 ${tx.isCommitted ? 'border-2 border-black' : 'border-2 border-dashed border-secondary'} ${!tagBg ? (tx.type === 'income' ? 'bg-primary-container' : 'bg-error-container') : ''}`}
@@ -627,6 +645,7 @@ export default function DashboardPage() {
                             <div className="flex items-center gap-1.5">
                               <p className="font-body-sm font-bold text-on-surface truncate">{getTransactionTitle(tx)}</p>
                               {!tx.isCommitted && <span className="font-label-caps text-[8px] uppercase px-1 py-0.5 bg-secondary text-on-secondary leading-none shrink-0">Pending</span>}
+                              {isQueued && <span className="font-label-caps text-[8px] uppercase px-1 py-0.5 bg-secondary text-on-secondary leading-none shrink-0">Queued</span>}
                             </div>
                             {tx.tags?.length ? <TagChips tags={tx.tags} /> : <p className="text-[14px] text-on-surface-variant truncate">{getTransactionCategory(tx)}</p>}
                             {tx.vault?.name && (
@@ -687,6 +706,7 @@ export default function DashboardPage() {
       <div className="fixed bottom-24 md:bottom-8 right-4 md:right-8 z-50">
         <Button
           onClick={() => setIsModalOpen(true)}
+          aria-label="Log new resource"
           variant="primary"
           className="h-16 w-16 flex items-center justify-center rounded-none relative focus:outline-none !p-0 shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-y-0.5 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] active:translate-y-1 active:shadow-none transition-all"
         >

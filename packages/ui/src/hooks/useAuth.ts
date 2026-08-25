@@ -2,6 +2,8 @@
 
 import { useReducer, useEffect, useCallback } from 'react';
 import { AUTH_TOKEN_STORAGE_KEY, PROFILE_STORAGE_KEY } from '@/lib/api/ApiClient';
+import { clearCache } from '@/lib/offline/cache';
+import { clearOutbox } from '@/lib/offline/outbox';
 
 export interface AuthUser {
   id: string;
@@ -64,6 +66,9 @@ export function useAuth() {
   const signOut = useCallback(() => {
     localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
     localStorage.removeItem(PROFILE_STORAGE_KEY);
+    // Cached reference data and unsent writes belong to the user signing out.
+    clearCache();
+    clearOutbox();
     dispatch({ type: 'CLEAR_USER' });
   }, []);
 

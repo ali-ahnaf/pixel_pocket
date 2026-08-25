@@ -15,7 +15,7 @@ jest.mock('../services', () => ({
   },
 }));
 
-type DebtsRepositoryMock = jest.Mocked<Pick<DebtsRepository, 'findManyForUser' | 'findOneForUser' | 'createEntity' | 'remove' | 'save'>>;
+type DebtsRepositoryMock = jest.Mocked<Pick<DebtsRepository, 'findManyForUser' | 'findOneForUser' | 'findOneByClientRequestId' | 'createEntity' | 'remove' | 'save'>>;
 
 type TransactionsRepositoryMock = jest.Mocked<Pick<TransactionsRepository, 'createEntity' | 'save'>>;
 
@@ -55,6 +55,7 @@ describe('DebtsService', () => {
     debts = {
       findManyForUser: jest.fn(),
       findOneForUser: jest.fn(),
+      findOneByClientRequestId: jest.fn(),
       createEntity: jest.fn((data) => data as Debt),
       remove: jest.fn(),
       save: jest.fn(),
@@ -162,7 +163,38 @@ describe('DebtsService', () => {
         type: input.type,
         notes: null,
         dueDate: null,
+        clientRequestId: null,
       });
+    });
+
+    it('persists the clientRequestId of an offline-queued create', async () => {
+      const saved = buildDebt();
+      debts.findOneByClientRequestId.mockResolvedValue(null);
+      debts.save.mockResolvedValue(saved);
+
+      await service.create('user-1', { ...input, clientRequestId: 'b3f1c2d4-0000-4000-8000-000000000002' });
+
+      expect(debts.createEntity).toHaveBeenCalledWith(expect.objectContaining({ clientRequestId: 'b3f1c2d4-0000-4000-8000-000000000002' }));
+    });
+
+    it('returns the existing debt instead of inserting a duplicate when the clientRequestId was already used', async () => {
+      const existing = buildDebt({ id: 'debt-existing' });
+      debts.findOneByClientRequestId.mockResolvedValue(existing);
+
+      const result = await service.create('user-1', { ...input, clientRequestId: 'b3f1c2d4-0000-4000-8000-000000000002' });
+
+      expect(debts.findOneByClientRequestId).toHaveBeenCalledWith('user-1', 'b3f1c2d4-0000-4000-8000-000000000002');
+      expect(debts.createEntity).not.toHaveBeenCalled();
+      expect(debts.save).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ id: 'debt-existing', userId: existing.userId, title: existing.title });
+    });
+
+    it('does not look up an idempotency key when the create carries none', async () => {
+      debts.save.mockResolvedValue(buildDebt());
+
+      await service.create('user-1', input);
+
+      expect(debts.findOneByClientRequestId).not.toHaveBeenCalled();
     });
 
     it('persists the notes field when provided', async () => {

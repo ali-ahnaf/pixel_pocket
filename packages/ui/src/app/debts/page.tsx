@@ -7,6 +7,9 @@ import { Plus, Check, Trash2, TrendingDown, TrendingUp, Coins, ChevronDown, Cale
 import { AppBar, BottomNavBar, Button, Card, AddDebtModal, DesktopSidebar, DiscardDebtModal, ApplyDebtModal, QueryParamsProvider, useQueryParams } from '@/components';
 import { useAuth } from '@/hooks/useAuth';
 import { profileApi } from '@/lib/api';
+import { NetworkError } from '@/lib/api/ApiClient';
+import { enqueue, isOfflineId, OFFLINE_ID_PREFIX, pendingDebts } from '@/lib/offline/outbox';
+import { OFFLINE_SYNCED_EVENT } from '@/lib/offline/sync-events';
 import type { DebtDto, VaultDto } from '@expense-tracker/shared';
 
 const DebtTypes = {
@@ -58,7 +61,10 @@ function DebtsContent() {
 
     try {
       const [d, v] = await Promise.all([profileApi.getDebts(userId, status), profileApi.getVaults(userId)]);
-      setDebts(d);
+      // Dues still waiting in the outbox are not on the server yet, so they must
+      // be merged on top of the fetched (or cached) list to survive a reload.
+      const queued = status === DebtTypes.COMPLETED ? [] : pendingDebts(userId);
+      setDebts([...queued, ...d]);
       setVaults(v);
     } catch (e) {
       console.error(e);
@@ -71,10 +77,51 @@ function DebtsContent() {
     void fetchData();
   }, [fetchData]);
 
+  // Once the outbox drains, the queued dues exist server-side — refetch so the
+  // placeholder rows are replaced by real ones (with real ids and actions).
+  useEffect(() => {
+    const onSynced = () => void fetchData();
+    window.addEventListener(OFFLINE_SYNCED_EVENT, onSynced);
+    return () => window.removeEventListener(OFFLINE_SYNCED_EVENT, onSynced);
+  }, [fetchData]);
+
   const handleCreate = async (data: { title: string; amount: number; type: 'expense' | 'income'; notes: string | null; dueDate: string | null }) => {
     if (!userId) return;
-    const created = await profileApi.createDebt(userId, data);
-    setDebts((prev) => [created, ...prev]);
+
+    // Every field of a due is known client-side, so an offline create can render
+    // exactly like an online one — only the id marks it as not-yet-synced.
+    const queueLocally = () => {
+      const entry = enqueue({ kind: 'create-debt', userId, payload: data });
+      setDebts((prev) => [
+        {
+          id: `${OFFLINE_ID_PREFIX}${entry.id}`,
+          userId,
+          title: data.title,
+          amount: data.amount,
+          type: data.type,
+          notes: data.notes,
+          dueDate: data.dueDate,
+          createdAt: new Date(),
+          completed: false,
+          discarded: false,
+        },
+        ...prev,
+      ]);
+    };
+
+    if (!navigator.onLine) {
+      queueLocally();
+      return;
+    }
+
+    try {
+      const created = await profileApi.createDebt(userId, data);
+      setDebts((prev) => [created, ...prev]);
+    } catch (err) {
+      // Only a transport failure is queued; a server rejection must surface.
+      if (!(err instanceof NetworkError)) throw err;
+      queueLocally();
+    }
   };
 
   const handleUpdate = async (data: { title: string; amount: number; type: 'expense' | 'income'; notes: string | null; dueDate: string | null }) => {
@@ -203,10 +250,14 @@ function DebtsContent() {
             <div className="flex flex-col gap-3">
               {debts.map((debt) => {
                 const isIncome = debt.type === 'income';
+                // A due that only exists in the outbox has no server id yet, so
+                // editing, applying and discarding it are impossible until it syncs.
+                const isQueued = isOfflineId(debt.id);
                 return (
                   <Card key={debt.id} className="flex flex-col sm:flex-row sm:items-center gap-3 !p-3">
                     <button
                       type="button"
+                      disabled={isQueued}
                       onClick={() => setEditDebt(debt)}
                       className="flex items-center gap-3 flex-1 min-w-0 text-left cursor-pointer group focus:outline-none"
                       aria-label={`Edit ${debt.title}`}
@@ -222,6 +273,7 @@ function DebtsContent() {
 
                           {debt.completed && <span className="text-xs border-2 border-green-600 text-green-700 px-2 py-0.5 rounded whitespace-nowrap">✓</span>}
                           {debt.discarded && <span className="text-xs border-2 border-error text-error px-2 py-0.5 rounded whitespace-nowrap">✕</span>}
+                          {isQueued && <span className="font-label-caps text-[9px] uppercase px-1 py-0.5 bg-secondary text-on-secondary leading-none whitespace-nowrap">Queued</span>}
                         </div>
                         <span className={`font-label-caps text-[11px] uppercase ${isIncome ? 'text-primary' : 'text-error'}`}>
                           {formatCurrency(debt.amount)} · {debt.type}
@@ -235,7 +287,7 @@ function DebtsContent() {
                         {debt.notes && <span className="font-body-sm text-on-surface-variant truncate mt-0.5">{debt.notes}</span>}
                       </div>
                     </button>
-                    {!debt.completed && !debt.discarded && (
+                    {!debt.completed && !debt.discarded && !isQueued && (
                       <div className="flex gap-2 shrink-0">
                         <Button variant="primary" size="sm" className="flex items-center gap-1" onClick={() => openApplyDialog(debt)}>
                           <Check className="w-4 h-4" />

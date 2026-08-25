@@ -5,9 +5,12 @@ import Link from 'next/link';
 import { X, Coins, ChevronDown, Plus, Package, Sparkles, Send, SlidersHorizontal } from 'lucide-react';
 import { iconMapper } from '../lib/iconMapper';
 import { profileApi } from '../lib/api';
+import { NetworkError } from '../lib/api/ApiClient';
+import { enqueue } from '../lib/offline/outbox';
 import { TransactionTypeToggle } from './TransactionTypeToggle';
 import { useDekSession } from '../hooks/useDekSession';
 import { useDisplaySettings } from '../hooks/useDisplaySettings';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { decryptKey } from '../lib/crypto/ai-key';
 import { chat, type JsonSchemaResponseFormat } from '../lib/ai/openrouter';
 import type { TagDto, VaultDto, ParsedTransaction } from '@expense-tracker/shared';
@@ -40,11 +43,14 @@ interface LogResourceModalProps {
 export function LogResourceModal({ isOpen, onClose, onSuccess, userId, selectedMonth, selectedYear }: LogResourceModalProps) {
   const { dek, loading: dekLoading } = useDekSession();
   const { aiTransactionEntryEnabled, loaded: preferencesLoaded } = useDisplaySettings();
+  const isOnline = useOnlineStatus();
 
   // `null` means "follow the preference": AI entry on opens on the prompt, manual
   // entry on opens on the form. The user's toggle (or a successful parse) pins it.
   const [manualEntryOverride, setManualEntryOverride] = useState<boolean | null>(null);
-  const manualEntry = aiTransactionEntryEnabled ? (manualEntryOverride ?? false) : true;
+  // The AI path needs OpenRouter, so offline there is nothing to switch to:
+  // force the manual form rather than offering a prompt box that cannot work.
+  const manualEntry = !isOnline || (aiTransactionEntryEnabled ? (manualEntryOverride ?? false) : true);
   const [promptText, setPromptText] = useState('');
   const [isPrompting, setIsPrompting] = useState(false);
   const [promptResult, setPromptResult] = useState<string | null>(null);
@@ -53,6 +59,7 @@ export function LogResourceModal({ isOpen, onClose, onSuccess, userId, selectedM
   const [isExpense, setIsExpense] = useState(true);
   const [amount, setAmount] = useState('');
   const [title, setTitle] = useState('');
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [shouldRender, setShouldRender] = useState(isOpen);
   const [isVisible, setIsVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -78,17 +85,26 @@ export function LogResourceModal({ isOpen, onClose, onSuccess, userId, selectedM
       setPromptResult(null);
       setPromptNeedsAiSetup(false);
     }
+    if (isOpen) setSubmitError(null);
     if (isOpen && userId) {
-      profileApi.getTags(userId).then((res) => {
-        if (res) setAvailableTags(res);
-      });
-      profileApi.getVaults(userId).then((res) => {
-        if (res) {
-          setVaults(res);
-          const def = res.find((v) => v.isDefault) ?? res[0] ?? null;
-          if (def) setSelectedVaultId(def.id);
-        }
-      });
+      // Offline these resolve from the reference cache (see lib/offline/cache);
+      // the catch only covers the first-ever open, where there is nothing cached.
+      profileApi
+        .getTags(userId)
+        .then((res) => {
+          if (res) setAvailableTags(res);
+        })
+        .catch(() => undefined);
+      profileApi
+        .getVaults(userId)
+        .then((res) => {
+          if (res) {
+            setVaults(res);
+            const def = res.find((v) => v.isDefault) ?? res[0] ?? null;
+            if (def) setSelectedVaultId(def.id);
+          }
+        })
+        .catch(() => undefined);
     }
   }, [isOpen, userId]);
 
@@ -230,7 +246,9 @@ prompt: ${promptText.trim()}`;
       const existing = availableTags.find((t) => t.name === tagName);
       if (existing) {
         toggleTag(existing);
-      } else {
+      } else if (isOnline) {
+        // Creating a tag offline is out of scope: a tag needs a server id before
+        // it can be attached to a transaction. Cached tags stay selectable.
         const res = await profileApi.createTag(userId, { name: tagName });
         if (res) {
           setAvailableTags([...availableTags, res]);
@@ -244,24 +262,48 @@ prompt: ${promptText.trim()}`;
   const handleSubmit = async () => {
     if (!userId || !amount || isSubmitting) return;
     setIsSubmitting(true);
+    setSubmitError(null);
     const now = new Date();
     const isCurrentMonth = selectedMonth === undefined || selectedYear === undefined || (selectedMonth === now.getMonth() && selectedYear === now.getFullYear());
     const date = isCurrentMonth ? undefined : `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-01`;
-    try {
-      await profileApi.createTransaction(userId, {
-        amount: parseFloat(amount),
-        type: isExpense ? 'expense' : 'income',
-        tagIds: selectedTags.map((t) => t.id),
-        title: title || undefined,
-        vaultId: selectedVaultId ?? null,
-        date,
-      });
+    const payload = {
+      amount: parseFloat(amount),
+      type: isExpense ? ('expense' as const) : ('income' as const),
+      tagIds: selectedTags.map((t) => t.id),
+      title: title || undefined,
+      vaultId: selectedVaultId ?? null,
+      date,
+    };
+
+    const finishSuccessfully = () => {
       setAmount('');
       setTitle('');
       setSelectedTags([]);
       setTagInput('');
       onSuccess?.();
       onClose();
+    };
+
+    try {
+      if (!navigator.onLine) {
+        // Don't even attempt the request when the browser knows it is offline.
+        enqueue({ kind: 'create-transaction', userId, payload });
+        finishSuccessfully();
+        return;
+      }
+
+      await profileApi.createTransaction(userId, payload);
+      finishSuccessfully();
+    } catch (err) {
+      // The request never reached the server — queue it and replay on reconnect.
+      // A real server error (validation, 500) must surface instead: retrying it
+      // forever would not help and hiding it would lose the transaction.
+      if (err instanceof NetworkError) {
+        enqueue({ kind: 'create-transaction', userId, payload });
+        finishSuccessfully();
+        return;
+      }
+      setSubmitError(profileApi.parseError(err));
     } finally {
       setIsSubmitting(false);
     }
@@ -339,8 +381,8 @@ prompt: ${promptText.trim()}`;
             </div>
           )}
 
-          {/* Only offered when AI entry is enabled — otherwise there is nothing to switch back to. */}
-          {preferencesLoaded && aiTransactionEntryEnabled && (
+          {/* Only offered when AI entry is enabled — otherwise there is nothing to switch back to. Offline the AI path cannot run at all. */}
+          {preferencesLoaded && aiTransactionEntryEnabled && isOnline && (
             <button
               onClick={() => setManualEntryOverride(!manualEntry)}
               className="w-full h-12 border-4 border-black bg-surface-container-low text-on-surface font-label-caps flex items-center justify-between px-4 active:translate-y-0.5 hover:bg-surface-container-highest transition-colors"
@@ -499,7 +541,7 @@ prompt: ${promptText.trim()}`;
                     </div>
                   )}
 
-                  {tagInput && !suggestions.some((t) => t.name === tagInput.toUpperCase()) && !selectedTags.some((t) => t.name === tagInput.toUpperCase()) && (
+                  {isOnline && tagInput && !suggestions.some((t) => t.name === tagInput.toUpperCase()) && !selectedTags.some((t) => t.name === tagInput.toUpperCase()) && (
                     <div className="mt-3">
                       <span
                         onClick={() => handleKeyDown({ key: 'Enter', preventDefault: () => {} } as React.KeyboardEvent)}
@@ -511,6 +553,12 @@ prompt: ${promptText.trim()}`;
                   )}
                 </div>
               </div>
+
+              {!isOnline && (
+                <p className="font-label-caps text-[11px] uppercase text-secondary border-4 border-black bg-surface-container-lowest px-3 py-2">OFFLINE — THIS DROP WILL BE SAVED AND SYNCED LATER</p>
+              )}
+
+              {submitError && <p className="font-body-sm text-error border-4 border-error bg-surface-container-lowest px-3 py-2">{submitError}</p>}
 
               {/* Action Button */}
               <div className="pt-5">

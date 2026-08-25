@@ -6,10 +6,14 @@ import { useRouter } from 'next/navigation';
 import { Button } from './Button';
 import { Sidebar } from './Sidebar';
 import { useAuth } from '@/hooks/useAuth';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { OUTBOX_CHANGED_EVENT, peekAll } from '@/lib/offline/outbox';
 import { SIDEBAR_TOUR_CLOSE_EVENT, SIDEBAR_TOUR_OPEN_EVENT } from '@/lib/sidebar-tour';
 
 export const AppBar: React.FC = () => {
   const { user, signOut } = useAuth();
+  const isOnline = useOnlineStatus();
+  const [queuedCount, setQueuedCount] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -37,6 +41,15 @@ export const AppBar: React.FC = () => {
     };
   }, []);
 
+  // Queued writes are the only thing the offline banner needs from the outbox,
+  // and the count changes from anywhere (a form, the sync loop), hence the event.
+  useEffect(() => {
+    const update = () => setQueuedCount(peekAll().length);
+    update();
+    window.addEventListener(OUTBOX_CHANGED_EVENT, update);
+    return () => window.removeEventListener(OUTBOX_CHANGED_EVENT, update);
+  }, []);
+
   const handleLogout = () => {
     signOut();
     router.replace('/signin');
@@ -47,6 +60,18 @@ export const AppBar: React.FC = () => {
   return (
     <>
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={handleLogout} />
+      {/* Shown at every breakpoint: without it, the stale numbers on screen read as a bug.
+          Pages lay AppBar out in a column on mobile but a row from `md` up, so the banner
+          leaves the flow on desktop instead of stealing a column beside the sidebar. It is
+          purely informational, hence pointer-events-none. */}
+      {!isOnline && (
+        <div
+          role="status"
+          className="w-full bg-secondary-container text-on-secondary-container border-b-4 border-black px-4 py-1.5 font-label-caps text-[11px] uppercase text-center pointer-events-none md:fixed md:inset-x-0 md:top-0 md:z-[60]"
+        >
+          {queuedCount > 0 ? `Offline — ${queuedCount} change${queuedCount === 1 ? '' : 's'} will sync later` : 'Offline — changes will sync later'}
+        </div>
+      )}
       <header className="md:hidden bg-surface dark:bg-surface-dim text-primary dark:text-primary-fixed w-full border-b-4 border-black flex justify-between items-center px-margin-mobile px-4 h-16 sticky top-0 z-40">
         <Button variant="ghost" className="p-2 w-10 h-10 border-transparent bg-surface-container" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
           <Menu />

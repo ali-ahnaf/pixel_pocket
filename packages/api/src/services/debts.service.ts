@@ -35,6 +35,25 @@ export class DebtsService {
   }
 
   async create(userId: string, input: CreateDebtInput): Promise<DebtDto> {
+    // A create queued while the client was offline may already have reached the
+    // server on its first attempt; return that row rather than inserting a twin.
+    if (input.clientRequestId) {
+      const existing = await this.debts.findOneByClientRequestId(userId, input.clientRequestId);
+      if (existing) {
+        logger.info('Returned existing debt for replayed clientRequestId', { userId, debtId: existing.id });
+        return {
+          id: existing.id,
+          userId: existing.userId,
+          title: existing.title,
+          amount: Number(existing.amount),
+          type: existing.type,
+          notes: existing.notes ?? null,
+          dueDate: existing.dueDate ?? null,
+          createdAt: existing.createdAt,
+        };
+      }
+    }
+
     const debt = this.debts.createEntity({
       userId,
       title: input.title,
@@ -42,6 +61,7 @@ export class DebtsService {
       type: input.type,
       notes: input.notes ?? null,
       dueDate: input.dueDate ?? null,
+      clientRequestId: input.clientRequestId ?? null,
     });
     const saved = await this.debts.save(debt);
     logger.info('Created debt', { userId, debtId: saved.id });

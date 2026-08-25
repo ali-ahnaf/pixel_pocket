@@ -46,6 +46,15 @@ export class TransactionsRepository {
     return this.repo.findOneBy({ userId, interval: IsNull(), id });
   }
 
+  /**
+   * Look up a transaction by the client-generated idempotency key. Used to make
+   * a replayed offline create return the original row instead of inserting a
+   * duplicate.
+   */
+  findOneByClientRequestId(userId: string, clientRequestId: string): Promise<Expense | null> {
+    return this.repo.findOneBy({ userId, clientRequestId });
+  }
+
   createEntity(data: Partial<Expense>): Expense {
     return this.repo.create(data);
   }

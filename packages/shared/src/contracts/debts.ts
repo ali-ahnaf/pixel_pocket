@@ -8,6 +8,11 @@ export interface CreateDebtInput {
   type: TransactionType;
   notes?: string | null;
   dueDate?: string | null;
+  /**
+   * Client-generated UUID used to make the create idempotent — see
+   * `CreateTransactionInput.clientRequestId`.
+   */
+  clientRequestId?: string;
 }
 
 export interface UpdateDebtInput {
